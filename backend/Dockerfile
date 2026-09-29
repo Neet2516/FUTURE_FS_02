@@ -16,12 +16,10 @@ COPY Cargo.toml Cargo.lock ./
 # Create dummy main to compile dependencies first
 RUN mkdir src && echo "fn main() {}" > src/main.rs && echo "pub fn dummy() {}" > src/lib.rs
 RUN cargo build --release
-RUN rm -rf src
+RUN rm -rf src && cargo clean -p papercrm-backend
 
 # Copy real source code
 COPY src ./src
-# Touch files to force rebuild of the application code
-RUN touch src/main.rs src/lib.rs
 RUN cargo build --release
 
 # Final runtime image
