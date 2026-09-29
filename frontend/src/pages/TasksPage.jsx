@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { tasksApi } from '../services/api';
-import { StickyNote } from '../components/ui/StickyNote';
-import { WobblyButton } from '../components/ui/WobblyButton';
+import { EditorialButton } from '../components/editorial/EditorialButton';
+import { EditorialBadge } from '../components/editorial/EditorialBadge';
 import { LoadingState } from '../components/common/LoadingState';
 import { EmptyState } from '../components/common/EmptyState';
-import { Plus, CheckCircle2, ListTodo, Flame } from 'lucide-react';
+import { Plus, Check, Trash2, Calendar, AlertCircle, Clock } from 'lucide-react';
 
 export function TasksPage({ onQuickAdd }) {
   const [tasks, setTasks] = useState([]);
@@ -33,59 +33,76 @@ export function TasksPage({ onQuickAdd }) {
       const updated = await tasksApi.update(task.id, {
         completed: !task.completed,
       });
-      setTasks(prev => prev.map(t => (t.id === task.id ? updated : t)));
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
     } catch (err) {
-      alert(`Failed to update task: ${err.message}`);
+      alert(`Failed to update task record: ${err.message}`);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Discard this sticky note?')) return;
+    if (!window.confirm('Strike this reminder from the dispatch ledger?')) return;
     try {
       await tasksApi.delete(id);
-      setTasks(prev => prev.filter(t => t.id !== id));
+      setTasks((prev) => prev.filter((t) => t.id !== id));
     } catch (err) {
-      alert(`Failed to delete task: ${err.message}`);
+      alert(`Failed to strike task: ${err.message}`);
     }
   };
 
-  if (loading) return <LoadingState message="Pinning sticky notes to the corkboard..." />;
+  if (loading) return <LoadingState message="Auditing editorial action items & ledger..." />;
 
-  const filteredTasks = tasks.filter(t => {
+  const filteredTasks = tasks.filter((t) => {
     if (filter === 'pending') return !t.completed;
     if (filter === 'completed') return t.completed;
     return true;
   });
 
-  const pendingCount = tasks.filter(t => !t.completed).length;
-  const completedCount = tasks.filter(t => t.completed).length;
+  const pendingCount = tasks.filter((t) => !t.completed).length;
+  const completedCount = tasks.filter((t) => t.completed).length;
 
-  const rotations = ['-rotate-1', 'rotate-1', '-rotate-2', 'rotate-1.5', '-rotate-0.5', 'rotate-2'];
+  const getPriorityBadgeVariant = (priority) => {
+    switch (priority) {
+      case 'Urgent':
+      case 'High':
+        return 'accent';
+      case 'Medium':
+        return 'dark';
+      default:
+        return 'default';
+    }
+  };
 
   return (
     <div className="space-y-6">
-      {/* Top Banner & Filters */}
-      <div className="bg-paper border-2 border-ink wobbly p-5 shadow-hard flex flex-wrap items-center justify-between gap-4">
+      {/* Header and Filter Controls */}
+      <div className="border-2 border-foreground bg-newsprint p-6 shadow-hard flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h3 className="text-2xl font-heading font-bold text-ink flex items-center gap-2">
-            <span>Sticky Notes & Reminders</span>
-            <span className="text-xl">📌</span>
-          </h3>
-          <p className="text-sm font-body text-ink/70">
-            Handwritten reminders, urgent action items & daily checklists
+          <div className="flex items-center gap-3 mb-1">
+            <span className="font-data text-xs text-neutral-500 uppercase tracking-widest">
+              SECTION 04 • ACTION DISPATCH
+            </span>
+            <EditorialBadge variant="dark" size="xs">
+              {pendingCount} Pending
+            </EditorialBadge>
+          </div>
+          <h2 className="font-display text-3xl font-bold text-foreground">
+            Operational Task Ledger
+          </h2>
+          <p className="font-body text-sm text-neutral-600">
+            Chronological checklist of client follow-ups, agreements, and critical reminders
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Filter Pills */}
-          <div className="flex gap-1.5 p-1 bg-muted-paper/50 border border-ink wobbly-sm">
+          <div className="flex border border-foreground sharp-corners">
             <button
               type="button"
               onClick={() => setFilter('all')}
-              className={`px-3 py-1 font-heading font-bold text-xs border transition-all ${
+              className={`px-3 py-1.5 font-ui text-xs font-bold uppercase tracking-wider transition-colors ${
                 filter === 'all'
-                  ? 'bg-ink text-paper border-ink wobbly shadow-hard-sm'
-                  : 'bg-transparent text-ink border-transparent hover:border-ink/50'
+                  ? 'bg-foreground text-newsprint'
+                  : 'bg-transparent text-foreground hover:bg-neutral-200'
               }`}
             >
               All ({tasks.length})
@@ -94,54 +111,122 @@ export function TasksPage({ onQuickAdd }) {
             <button
               type="button"
               onClick={() => setFilter('pending')}
-              className={`px-3 py-1 font-heading font-bold text-xs border transition-all ${
+              className={`px-3 py-1.5 font-ui text-xs font-bold uppercase tracking-wider border-l border-foreground transition-colors ${
                 filter === 'pending'
-                  ? 'bg-ink text-paper border-ink wobbly shadow-hard-sm'
-                  : 'bg-transparent text-ink border-transparent hover:border-ink/50'
+                  ? 'bg-foreground text-newsprint'
+                  : 'bg-transparent text-foreground hover:bg-neutral-200'
               }`}
             >
-              To-Do ({pendingCount})
+              Pending ({pendingCount})
             </button>
 
             <button
               type="button"
               onClick={() => setFilter('completed')}
-              className={`px-3 py-1 font-heading font-bold text-xs border transition-all ${
+              className={`px-3 py-1.5 font-ui text-xs font-bold uppercase tracking-wider border-l border-foreground transition-colors ${
                 filter === 'completed'
-                  ? 'bg-ink text-paper border-ink wobbly shadow-hard-sm'
-                  : 'bg-transparent text-ink border-transparent hover:border-ink/50'
+                  ? 'bg-foreground text-newsprint'
+                  : 'bg-transparent text-foreground hover:bg-neutral-200'
               }`}
             >
-              Done ({completedCount})
+              Resolved ({completedCount})
             </button>
           </div>
 
-          <WobblyButton variant="yellow" onClick={onQuickAdd}>
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>+ Pin Note</span>
-          </WobblyButton>
+          <EditorialButton variant="primary" size="md" onClick={onQuickAdd}>
+            <Plus className="w-4 h-4" />
+            <span>+ File Task</span>
+          </EditorialButton>
         </div>
       </div>
 
-      {/* Sticky Notes Grid */}
+      {/* Task Ledger Table / Cards */}
       {filteredTasks.length === 0 ? (
         <EmptyState
-          title="All Caught Up!"
-          description="No tasks in this view. Take a breather or scribble a new note!"
-          actionLabel="Pin a Note"
+          title="Ledger Cleared"
+          description="No tasks remaining under the current filter view. Create an action item to populate the dispatch ledger."
+          actionLabel="File Task"
           onAction={onQuickAdd}
-          icon="📌"
+          icon="📋"
         />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 pt-2">
+        <div className="border-2 border-foreground bg-newsprint shadow-hard divide-y divide-foreground">
           {filteredTasks.map((task, idx) => (
-            <StickyNote
+            <div
               key={task.id}
-              task={task}
-              onToggle={handleToggle}
-              onDelete={handleDelete}
-              rotation={rotations[idx % rotations.length]}
-            />
+              className={`p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors ${
+                task.completed ? 'bg-neutral-100/70' : 'hover:bg-neutral-50'
+              }`}
+            >
+              {/* Left: Checkbox & Content */}
+              <div className="flex items-start gap-4 flex-1">
+                {/* Sharp Checkbox Button */}
+                <button
+                  type="button"
+                  onClick={() => handleToggle(task)}
+                  className={`mt-0.5 w-6 h-6 border-2 border-foreground sharp-corners flex items-center justify-center flex-shrink-0 transition-colors ${
+                    task.completed
+                      ? 'bg-foreground text-newsprint'
+                      : 'bg-newsprint hover:border-accent'
+                  }`}
+                  aria-label={task.completed ? 'Mark pending' : 'Mark completed'}
+                >
+                  {task.completed && <Check className="w-4 h-4 stroke-[3]" />}
+                </button>
+
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <span className="font-data text-xs text-neutral-400">
+                      #{String(idx + 1).padStart(3, '0')}
+                    </span>
+                    <h4
+                      className={`font-display text-lg font-bold text-foreground leading-snug ${
+                        task.completed ? 'line-through text-neutral-500' : ''
+                      }`}
+                    >
+                      {task.title}
+                    </h4>
+                    {task.priority && (
+                      <EditorialBadge
+                        variant={getPriorityBadgeVariant(task.priority)}
+                        size="xs"
+                      >
+                        {task.priority}
+                      </EditorialBadge>
+                    )}
+                  </div>
+
+                  {task.description && (
+                    <p
+                      className={`font-body text-sm text-neutral-700 max-w-2xl ${
+                        task.completed ? 'line-through text-neutral-400' : ''
+                      }`}
+                    >
+                      {task.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Right: Meta & Actions */}
+              <div className="flex items-center justify-between sm:justify-end gap-4 flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-neutral-300">
+                {task.due_date && (
+                  <div className="flex items-center gap-1.5 font-data text-xs text-neutral-600">
+                    <Calendar className="w-3.5 h-3.5 text-neutral-400" />
+                    <span>Due: {task.due_date}</span>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => handleDelete(task.id)}
+                  title="Strike task from ledger"
+                  className="p-1.5 text-neutral-400 hover:text-accent hover:bg-neutral-200 transition-colors sharp-corners"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           ))}
         </div>
       )}

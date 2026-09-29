@@ -1,27 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { dashboardApi } from '../services/api';
-import { BentoGrid, BentoGridItem } from '../components/ui/AceternityBentoGrid';
-import { CardSpotlight } from '../components/ui/AceternityCardSpotlight';
-import { WobblyCard } from '../components/ui/WobblyCard';
-import { WobblyButton } from '../components/ui/WobblyButton';
-import { WobblyBadge } from '../components/ui/WobblyBadge';
+import { EditorialButton } from '../components/editorial/EditorialButton';
+import { EditorialBadge } from '../components/editorial/EditorialBadge';
+import { EditorialCard, EditorialCardHeader, EditorialCardBody } from '../components/editorial/EditorialCard';
+import { StatBlock } from '../components/editorial/StatBlock';
+import { SectionHeader } from '../components/editorial/SectionHeader';
+import { NewsTicker } from '../components/editorial/NewsTicker';
 import { LoadingState } from '../components/common/LoadingState';
-import { ScribbleUnderline, RoughCircle } from '../components/ui/SketchAnnotation';
 import {
-  DollarSign,
-  TrendingUp,
-  Users,
-  CheckSquare,
-  Award,
   ArrowUpRight,
-  Activity,
-  Flame,
-  Clock,
-  Sparkles,
+  Award,
   PhoneCall,
   Mail,
   Calendar,
   FileText,
+  TrendingUp,
+  Flame,
+  CheckSquare,
+  Users,
+  Clock,
+  Briefcase,
 } from 'lucide-react';
 
 export function DashboardPage({ onNavigate, onQuickAdd }) {
@@ -45,14 +43,18 @@ export function DashboardPage({ onNavigate, onQuickAdd }) {
     fetchStats();
   }, []);
 
-  if (loading) return <LoadingState message="Summing up the ledger & calculating pipeline..." />;
+  if (loading) return <LoadingState message="Compiling Front Page edition & pipeline figures..." />;
 
   if (error || !stats) {
     return (
-      <div className="p-8 border-2 border-ink wobbly bg-rose-50 text-center shadow-hard">
-        <h3 className="font-heading font-bold text-2xl text-rose-950 mb-2">Error Loading Dashboard</h3>
-        <p className="font-body text-rose-800 mb-4">{error || 'Could not fetch stats'}</p>
-        <WobblyButton variant="primary" onClick={fetchStats}>Retry</WobblyButton>
+      <div className="p-8 border-2 border-foreground bg-newsprint text-center shadow-hard">
+        <h3 className="font-display font-bold text-2xl text-foreground mb-2">
+          Unable to Load Dispatch
+        </h3>
+        <p className="font-body text-neutral-600 mb-4">{error || 'Could not fetch dashboard data'}</p>
+        <EditorialButton variant="primary" onClick={fetchStats}>
+          Retry Query
+        </EditorialButton>
       </div>
     );
   }
@@ -62,260 +64,239 @@ export function DashboardPage({ onNavigate, onQuickAdd }) {
 
   const getActivityIcon = (type) => {
     switch (type) {
-      case 'Call': return <PhoneCall className="w-4 h-4 text-emerald-700" />;
-      case 'Email': return <Mail className="w-4 h-4 text-blue-700" />;
-      case 'Meeting': return <Calendar className="w-4 h-4 text-amber-700" />;
-      case 'Stage Change': return <Award className="w-4 h-4 text-accent-red" />;
-      default: return <FileText className="w-4 h-4 text-ink" />;
+      case 'Call': return <PhoneCall className="w-3.5 h-3.5 text-foreground" />;
+      case 'Email': return <Mail className="w-3.5 h-3.5 text-foreground" />;
+      case 'Meeting': return <Calendar className="w-3.5 h-3.5 text-foreground" />;
+      case 'Stage Change': return <Award className="w-3.5 h-3.5 text-accent" />;
+      default: return <FileText className="w-3.5 h-3.5 text-foreground" />;
     }
   };
 
-  // Find max value in stage breakdown for relative bar widths
-  const maxStageValue = Math.max(...stats.stage_breakdown.map(s => s.value), 1);
+  const maxStageValue = Math.max(...stats.stage_breakdown.map((s) => s.value), 1);
+
+  // Ticker items from recent activities and metrics
+  const tickerItems = [
+    `TOTAL PIPELINE: ${formatCurrency(stats.total_pipeline_value)}`,
+    `ACTIVE OPPORTUNITIES: ${stats.active_deals_count} DEALS`,
+    `WIN RATIO: ${stats.win_rate_percentage}% CONFIRMED`,
+    `WON REVENUE: ${stats.won_deals_count} CLOSED DEALS`,
+    `CLIENT DIRECTORY: ${stats.total_contacts_count} CONTACTS`,
+    `PENDING REMINDERS: ${stats.pending_tasks_count} ACTION ITEMS`,
+  ];
 
   return (
     <div className="space-y-8">
-      {/* 1. Hero Bento Grid */}
-      <BentoGrid>
-        {/* Bento 1: Total Pipeline Value (Large Spotlight) */}
-        <BentoGridItem
-          className="md:col-span-2 bg-[#fdfbf7]"
-          header={
-            <CardSpotlight className="p-6 bg-[#fffdfa] border-none shadow-none">
-              <div className="flex items-center justify-between gap-4 mb-2">
-                <span className="font-heading font-bold text-sm uppercase tracking-wider text-ink/70">
-                  Total Active Pipeline
-                </span>
-                <WobblyBadge variant="green" size="sm">
-                  +18.4% This Month
-                </WobblyBadge>
-              </div>
+      {/* 1. Breaking News Ticker */}
+      <NewsTicker items={tickerItems} />
 
-              <div className="flex items-baseline gap-3 my-2">
-                <span className="text-4xl sm:text-6xl font-heading font-bold text-ink">
-                  {formatCurrency(stats.total_pipeline_value)}
-                </span>
-              </div>
-
-              <p className="font-body text-base text-ink/75 mt-2">
-                Across <RoughCircle color="#ff4d4d"><b>{stats.active_deals_count} active opportunities</b></RoughCircle> currently progressing in your sales funnel.
-              </p>
-
-              <div className="mt-6 flex flex-wrap gap-3">
-                <WobblyButton
-                  variant="primary"
-                  size="sm"
-                  onClick={() => onNavigate('pipeline')}
-                >
-                  <span>Open Pipeline Kanban</span>
-                  <ArrowUpRight className="w-4 h-4" />
-                </WobblyButton>
-                <WobblyButton
-                  variant="secondary"
-                  size="sm"
-                  onClick={onQuickAdd}
-                >
-                  + Add Deal
-                </WobblyButton>
-              </div>
-            </CardSpotlight>
-          }
-        />
-
-        {/* Bento 2: Win Rate Stamp */}
-        <BentoGridItem
-          className="bg-postit-yellow/90 md:col-span-1 -rotate-[0.5deg]"
-          header={
-            <div className="p-4 text-center">
-              <div className="w-14 h-14 mx-auto mb-3 border-2 border-ink rounded-full bg-paper flex items-center justify-center shadow-hard-sm rotate-6">
-                <Award className="w-8 h-8 text-accent-red" />
-              </div>
-              <span className="font-heading font-bold text-xs uppercase tracking-widest text-ink/70">
-                Win Rate
-              </span>
-              <div className="text-5xl font-heading font-bold text-ink my-1">
-                {stats.win_rate_percentage}%
-              </div>
-              <p className="font-body text-sm text-ink/80">
-                {stats.won_deals_count} Closed Won Deals
-              </p>
-            </div>
-          }
-        />
-
-        {/* Bento 3: Total Contacts */}
-        <BentoGridItem
-          className="md:col-span-1 rotate-[0.5deg]"
-          header={
-            <div className="p-2">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-heading font-bold text-xs uppercase tracking-wider text-ink/70">
-                  Total Contacts
-                </span>
-                <Users className="w-5 h-5 text-secondary-blue" />
-              </div>
-              <div className="text-4xl font-heading font-bold text-ink">
-                {stats.total_contacts_count}
-              </div>
-              <p className="font-body text-sm text-ink/70 mt-1">
-                Leads, clients & partners
-              </p>
-            </div>
-          }
-          onClick={() => onNavigate('contacts')}
-        />
-
-        {/* Bento 4: Tasks Pending */}
-        <BentoGridItem
-          className="md:col-span-1 -rotate-[0.5deg]"
-          header={
-            <div className="p-2">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-heading font-bold text-xs uppercase tracking-wider text-ink/70">
-                  Sticky Notes To-Do
-                </span>
-                <CheckSquare className="w-5 h-5 text-accent-red" />
-              </div>
-              <div className="text-4xl font-heading font-bold text-ink">
-                {stats.pending_tasks_count}
-              </div>
-              <p className="font-body text-sm text-ink/70 mt-1">
-                {stats.completed_tasks_count} completed this week
-              </p>
-            </div>
-          }
-          onClick={() => onNavigate('tasks')}
-        />
-
-        {/* Bento 5: Quick Notes / System Health */}
-        <BentoGridItem
-          className="md:col-span-1 bg-[#f5f1e8]"
-          header={
-            <div className="p-2">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-heading font-bold text-xs uppercase tracking-wider text-ink/70">
-                  Rust Axum Engine
-                </span>
-                <Flame className="w-5 h-5 text-amber-600" />
-              </div>
-              <div className="text-xl font-heading font-bold text-emerald-800 flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Healthy & Active</span>
-              </div>
-              <p className="font-body text-sm text-ink/70 mt-1">
-                Sub-millisecond SQLite WAL queries
-              </p>
-            </div>
-          }
-        />
-      </BentoGrid>
-
-      {/* 2. Pipeline Stage Distribution & Recent Activity Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Hand-Drawn Pipeline Funnel */}
-        <WobblyCard withTape tapeColor="yellow" className="lg:col-span-2 p-6">
-          <div className="flex items-center justify-between border-b-2 border-dashed border-ink/20 pb-4 mb-5">
+      {/* 2. Lead Article / Hero Pipeline Overview */}
+      <div className="border-2 border-foreground bg-newsprint shadow-hard">
+        <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-foreground">
+          {/* Main Headline Section (7 cols) */}
+          <div className="lg:col-span-7 p-6 sm:p-8 flex flex-col justify-between">
             <div>
-              <h3 className="text-2xl font-heading font-bold text-ink">
-                Deal Flow by Stage
-              </h3>
-              <p className="text-sm font-body text-ink/70">
-                Visual pipeline breakdown across all 7 deal stages
+              <div className="flex items-center gap-3 mb-3">
+                <EditorialBadge variant="accent" size="sm">
+                  LEAD REPORT
+                </EditorialBadge>
+                <span className="font-data text-xs text-neutral-500 uppercase tracking-widest">
+                  FISCAL CYCLE 2026-Q3
+                </span>
+              </div>
+
+              <h2 className="font-display text-4xl sm:text-5xl lg:text-6xl font-black text-foreground leading-[0.95] tracking-tight mb-4">
+                Total Active Pipeline Reaches {formatCurrency(stats.total_pipeline_value)}
+              </h2>
+
+              <p className="font-body text-base sm:text-lg text-neutral-700 leading-relaxed max-w-xl">
+                Commercial negotiations remain resilient across <strong>{stats.active_deals_count} active opportunities</strong> currently progressing through the sales funnel. Win conversion stands at <strong>{stats.win_rate_percentage}%</strong> across all qualified opportunities.
               </p>
             </div>
-            <WobblyButton
-              variant="secondary"
-              size="sm"
-              onClick={() => onNavigate('pipeline')}
-            >
-              View Kanban Board
-            </WobblyButton>
+
+            <div className="mt-6 pt-6 border-t border-neutral-300 flex flex-wrap items-center gap-4">
+              <EditorialButton
+                variant="primary"
+                size="md"
+                onClick={() => onNavigate('pipeline')}
+              >
+                <span>Examine Pipeline Board</span>
+                <ArrowUpRight className="w-4 h-4" />
+              </EditorialButton>
+              <EditorialButton
+                variant="secondary"
+                size="md"
+                onClick={onQuickAdd}
+              >
+                + File New Deal
+              </EditorialButton>
+            </div>
           </div>
 
-          {/* Hand-drawn Stage Bars */}
-          <div className="space-y-4">
-            {stats.stage_breakdown.map((item) => {
-              const pct = Math.round((item.value / maxStageValue) * 100);
-              const isWon = item.stage === 'Won';
-              const isLost = item.stage === 'Lost';
+          {/* Key Indicators Column (5 cols) */}
+          <div className="lg:col-span-5 p-6 sm:p-8 bg-neutral-100/50 flex flex-col justify-between space-y-6">
+            <div>
+              <span className="editorial-label text-neutral-500 block mb-3">
+                QUICK STATISTICAL LEDGER
+              </span>
 
-              return (
-                <div key={item.stage} className="space-y-1">
-                  <div className="flex items-center justify-between text-sm font-heading font-bold">
-                    <span className="flex items-center gap-2">
-                      <span className={isWon ? 'text-emerald-700' : isLost ? 'text-rose-700' : 'text-ink'}>
-                        {item.stage}
-                      </span>
-                      <span className="text-xs px-1.5 py-0.2 bg-paper border border-ink wobbly-badge font-body text-ink/80">
-                        {item.count} {item.count === 1 ? 'deal' : 'deals'}
-                      </span>
-                    </span>
-                    <span>{formatCurrency(item.value)}</span>
+              <div className="grid grid-cols-2 gap-4">
+                <StatBlock
+                  label="WIN RATE"
+                  value={`${stats.win_rate_percentage}%`}
+                  sublabel={`${stats.won_deals_count} Closed Won`}
+                  accent
+                />
+                <StatBlock
+                  label="CONTACTS"
+                  value={stats.total_contacts_count}
+                  sublabel="Verified entries"
+                  onClick={() => onNavigate('contacts')}
+                />
+                <StatBlock
+                  label="PENDING TO-DO"
+                  value={stats.pending_tasks_count}
+                  sublabel={`${stats.completed_tasks_count} completed`}
+                  onClick={() => onNavigate('tasks')}
+                />
+                <div className="p-4 border border-foreground bg-newsprint sharp-corners">
+                  <span className="editorial-label text-neutral-500 block mb-1">
+                    ENGINE HEALTH
+                  </span>
+                  <div className="font-display text-lg font-bold text-foreground flex items-center gap-2 mt-1">
+                    <span className="w-2.5 h-2.5 bg-foreground animate-pulse" />
+                    <span>RUST AXUM</span>
                   </div>
-
-                  {/* Hand-drawn ink bar meter */}
-                  <div className="w-full h-4 bg-muted-paper/40 border-2 border-ink wobbly-sm overflow-hidden p-0.5">
-                    <div
-                      className={`h-full border-r-2 border-ink transition-all duration-500 ${
-                        isWon
-                          ? 'bg-emerald-400'
-                          : isLost
-                          ? 'bg-rose-300'
-                          : 'bg-postit-yellow'
-                      }`}
-                      style={{ width: `${Math.max(pct, 3)}%` }}
-                    />
-                  </div>
+                  <span className="data-label text-neutral-500 block mt-2">
+                    Sub-ms PostgreSQL
+                  </span>
                 </div>
-              );
-            })}
-          </div>
-        </WobblyCard>
+              </div>
+            </div>
 
-        {/* Right 1 Col: Recent Activities Log */}
-        <WobblyCard withTape tapeColor="pink" className="p-6">
-          <div className="flex items-center justify-between border-b-2 border-dashed border-ink/20 pb-4 mb-4">
-            <h3 className="text-2xl font-heading font-bold text-ink flex items-center gap-2">
-              <Clock className="w-5 h-5 text-secondary-blue" />
-              <span>Activity Log</span>
-            </h3>
-            <button
-              type="button"
-              onClick={() => onNavigate('activity')}
-              className="text-xs font-heading font-bold text-secondary-blue hover:underline"
-            >
-              All →
-            </button>
+            <div className="p-3 border border-dashed border-foreground/40 bg-newsprint text-xs font-body text-neutral-600">
+              <strong className="font-ui uppercase tracking-wider text-foreground">Editor's Memo:</strong> Deal progression velocity is tracked in real-time. Review stagnant negotiations in the pipeline room.
+            </div>
           </div>
+        </div>
+      </div>
 
-          <div className="space-y-3.5 max-h-[360px] overflow-y-auto pr-1">
-            {stats.recent_activities.length === 0 ? (
-              <p className="text-sm font-body text-ink/60 text-center py-6">
-                No recent activity logged yet.
-              </p>
-            ) : (
-              stats.recent_activities.map((act) => (
-                <div
-                  key={act.id}
-                  className="p-3 bg-paper border border-ink wobbly-sm shadow-hard-sm transition-transform hover:-translate-y-0.5 text-xs"
-                >
-                  <div className="flex items-center justify-between gap-1 mb-1">
-                    <span className="flex items-center gap-1.5 font-heading font-bold text-ink">
-                      {getActivityIcon(act.activity_type)}
-                      <span>{act.activity_type}</span>
-                    </span>
-                    <span className="text-[10px] text-ink/60 font-body">
-                      {act.created_at.split('T')[0] || act.created_at.split(' ')[0]}
-                    </span>
+      {/* 3. Editorial Two-Column Dispatch: Deal Flow vs Activity Record */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Deal Flow by Stage (7 cols) */}
+        <div className="lg:col-span-7">
+          <SectionHeader
+            number={1}
+            title="Deal Flow Distribution"
+            subtitle="Volume and monetary exposure across all seven pipeline stages"
+            action={
+              <EditorialButton
+                variant="ghost"
+                size="sm"
+                onClick={() => onNavigate('pipeline')}
+              >
+                View Kanban →
+              </EditorialButton>
+            }
+          />
+
+          <EditorialCard className="p-6">
+            <div className="space-y-4">
+              {stats.stage_breakdown.map((item, idx) => {
+                const pct = Math.round((item.value / maxStageValue) * 100);
+                const isWon = item.stage === 'Won';
+                const isLost = item.stage === 'Lost';
+
+                return (
+                  <div key={item.stage} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-ui font-bold">
+                      <div className="flex items-center gap-2">
+                        <span className="font-data text-neutral-400">
+                          {String(idx + 1).padStart(2, '0')}
+                        </span>
+                        <span className={isWon ? 'text-foreground font-black' : isLost ? 'text-neutral-500' : 'text-foreground'}>
+                          {item.stage}
+                        </span>
+                        <EditorialBadge
+                          variant={isWon ? 'accent' : 'default'}
+                          size="xs"
+                        >
+                          {item.count} {item.count === 1 ? 'deal' : 'deals'}
+                        </EditorialBadge>
+                      </div>
+                      <span className="font-data font-semibold text-foreground">
+                        {formatCurrency(item.value)}
+                      </span>
+                    </div>
+
+                    {/* Editorial Progress Bar */}
+                    <div className="w-full h-3 bg-neutral-200 border border-foreground sharp-corners overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-500 ${
+                          isWon
+                            ? 'bg-accent'
+                            : isLost
+                            ? 'bg-neutral-400'
+                            : 'bg-foreground'
+                        }`}
+                        style={{ width: `${Math.max(pct, 2)}%` }}
+                      />
+                    </div>
                   </div>
-                  <p className="font-body text-sm text-ink/90 line-clamp-2">
-                    {act.description}
-                  </p>
-                </div>
-              ))
-            )}
-          </div>
-        </WobblyCard>
+                );
+              })}
+            </div>
+          </EditorialCard>
+        </div>
+
+        {/* Activity Log / Dispatch Wire (5 cols) */}
+        <div className="lg:col-span-5">
+          <SectionHeader
+            number={2}
+            title="Chronological Wire"
+            subtitle="Latest interactions, stage advancements & recorded dispatches"
+            action={
+              <EditorialButton
+                variant="ghost"
+                size="sm"
+                onClick={() => onNavigate('activity')}
+              >
+                Full Archive →
+              </EditorialButton>
+            }
+          />
+
+          <EditorialCard className="p-0">
+            <div className="divide-y divide-neutral-200 max-h-[440px] overflow-y-auto">
+              {stats.recent_activities.length === 0 ? (
+                <p className="p-6 text-sm font-body text-neutral-500 text-center">
+                  No dispatches recorded in the current cycle.
+                </p>
+              ) : (
+                stats.recent_activities.map((act) => (
+                  <div
+                    key={act.id}
+                    className="p-4 hover:bg-neutral-100/60 transition-colors"
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-2">
+                        {getActivityIcon(act.activity_type)}
+                        <span className="font-ui text-xs font-bold uppercase tracking-wider text-foreground">
+                          {act.activity_type}
+                        </span>
+                      </div>
+                      <span className="font-data text-[10px] text-neutral-500">
+                        {act.created_at.split('T')[0] || act.created_at.split(' ')[0]}
+                      </span>
+                    </div>
+                    <p className="font-body text-sm text-neutral-800 leading-snug line-clamp-2">
+                      {act.description}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </EditorialCard>
+        </div>
       </div>
     </div>
   );

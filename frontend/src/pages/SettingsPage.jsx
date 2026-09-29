@@ -1,19 +1,17 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { WobblyCard } from '../components/ui/WobblyCard';
-import { WobblyButton } from '../components/ui/WobblyButton';
-import { WobblyBadge } from '../components/ui/WobblyBadge';
-import { WashiTape } from '../components/ui/WashiTape';
-import { Thumbtack } from '../components/ui/Thumbtack';
+import { EditorialButton } from '../components/editorial/EditorialButton';
+import { EditorialBadge } from '../components/editorial/EditorialBadge';
+import { SectionHeader } from '../components/editorial/SectionHeader';
 import {
   Settings,
   Cpu,
   Palette,
-  Shield,
   User,
   Database,
-  Download,
+  CheckCircle,
   Terminal,
+  Layers,
 } from 'lucide-react';
 
 export function SettingsPage() {
@@ -21,146 +19,212 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-8 max-w-5xl">
-      {/* Title */}
-      <div className="bg-paper border-2 border-ink wobbly p-5 shadow-hard flex items-center justify-between gap-4">
+      {/* Title Header */}
+      <div className="border-2 border-foreground bg-newsprint p-6 shadow-hard flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h3 className="text-2xl font-heading font-bold text-ink flex items-center gap-2">
-            <Settings className="w-6 h-6 text-secondary-blue" />
-            <span>Settings & Sketchbook Design System</span>
-          </h3>
-          <p className="text-sm font-body text-ink/70">
-            Account preferences, system diagnostics & design token reference
+          <div className="flex items-center gap-3 mb-1">
+            <span className="font-data text-xs text-neutral-500 uppercase tracking-widest">
+              SECTION 06 • MASTHEAD PREFERENCES
+            </span>
+            <EditorialBadge variant="dark" size="xs">
+              Config V1.0
+            </EditorialBadge>
+          </div>
+          <h2 className="font-display text-3xl font-bold text-foreground">
+            Editorial Settings & System Dossier
+          </h2>
+          <p className="font-body text-sm text-neutral-600">
+            Staff credentials, active representative switching, engine diagnostics & typography tokens
           </p>
         </div>
       </div>
 
-      {/* 1. Account / Active Profile */}
-      <WobblyCard withTape tapeColor="yellow" className="p-6">
-        <h4 className="text-xl font-heading font-bold text-ink mb-4 flex items-center gap-2">
-          <User className="w-5 h-5 text-accent-red" />
-          <span>Active Representative Account</span>
-        </h4>
+      {/* 1. Account / Active Representative */}
+      <div className="border-2 border-foreground bg-newsprint p-6 shadow-hard space-y-4">
+        <SectionHeader
+          number={1}
+          title="Active Representative Profile"
+          subtitle="Select an editorial staff persona to simulate distinct access roles"
+        />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {demoUsers.map((u) => {
             const isSelected = user.id === u.id;
             return (
               <div
                 key={u.id}
                 onClick={() => switchDemoUser(u.id)}
-                className={`p-4 border-2 border-ink wobbly cursor-pointer transition-all ${
+                className={`p-4 border-2 transition-all cursor-pointer sharp-corners flex flex-col justify-between ${
                   isSelected
-                    ? 'bg-postit-yellow shadow-hard scale-[1.02]'
-                    : 'bg-paper hover:bg-muted-paper/40 shadow-hard-sm'
+                    ? 'border-foreground bg-neutral-100 shadow-hard'
+                    : 'border-neutral-300 hover:border-foreground bg-newsprint'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-12 h-12 border-2 border-ink rounded-full flex items-center justify-center font-heading font-bold text-xl shadow-inner"
-                    style={{ backgroundColor: u.avatarColor }}
-                  >
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 border-2 border-foreground bg-foreground text-newsprint flex items-center justify-center font-display font-bold text-xl sharp-corners">
                     {u.name.charAt(0)}
                   </div>
                   <div>
-                    <h5 className="font-heading font-bold text-lg text-ink">
+                    <h4 className="font-display text-lg font-bold text-foreground">
                       {u.name}
-                    </h5>
-                    <p className="text-xs font-body text-ink/70">{u.role}</p>
-                    <p className="text-xs font-body text-secondary-blue font-bold">{u.email}</p>
+                    </h4>
+                    <p className="font-ui text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                      {u.role}
+                    </p>
+                    <p className="font-data text-xs text-neutral-600 mt-0.5">{u.email}</p>
                   </div>
                 </div>
-                {isSelected && (
-                  <div className="mt-3 text-right">
-                    <WobblyBadge variant="green" size="sm">Active Account</WobblyBadge>
-                  </div>
-                )}
+
+                <div className="mt-4 pt-3 border-t border-neutral-300 flex items-center justify-between">
+                  <span className="font-data text-[10px] text-neutral-400">
+                    STAFF ID: #{String(u.id).padStart(4, '0')}
+                  </span>
+                  {isSelected ? (
+                    <EditorialBadge variant="accent" size="xs">
+                      Active Byline
+                    </EditorialBadge>
+                  ) : (
+                    <span className="font-ui text-xs font-bold text-neutral-500 uppercase hover:text-foreground">
+                      Switch To Persona →
+                    </span>
+                  )}
+                </div>
               </div>
             );
           })}
         </div>
-      </WobblyCard>
+      </div>
 
       {/* 2. System Architecture Diagnostics */}
-      <WobblyCard withTape tapeColor="blue" className="p-6">
-        <h4 className="text-xl font-heading font-bold text-ink mb-4 flex items-center gap-2">
-          <Cpu className="w-5 h-5 text-secondary-blue" />
-          <span>System & Infrastructure Diagnostics</span>
-        </h4>
+      <div className="border-2 border-foreground bg-newsprint p-6 shadow-hard space-y-4">
+        <SectionHeader
+          number={2}
+          title="System Architecture Diagnostics"
+          subtitle="Real-time status of backend services, async runtime, and datastore engines"
+        />
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm font-body">
-          <div className="p-4 bg-[#f5f1e8] border border-ink wobbly-sm shadow-hard-sm">
-            <span className="font-heading font-bold text-xs uppercase text-ink/70 block mb-1">
-              Backend Runtime
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="p-4 border border-foreground bg-neutral-100 sharp-corners">
+            <span className="editorial-label text-neutral-500 block mb-1">
+              BACKEND RUNTIME
             </span>
-            <p className="text-lg font-heading font-bold text-ink">Rust 1.80+ (Axum 0.7)</p>
-            <p className="text-xs text-ink/70 mt-1">Multi-threaded Tokio asynchronous engine</p>
+            <p className="font-display text-xl font-bold text-foreground">Rust 1.80+ (Axum)</p>
+            <p className="font-body text-xs text-neutral-600 mt-1">
+              Multi-threaded Tokio asynchronous engine with zero-allocation JSON serialization
+            </p>
           </div>
 
-          <div className="p-4 bg-[#f5f1e8] border border-ink wobbly-sm shadow-hard-sm">
-            <span className="font-heading font-bold text-xs uppercase text-ink/70 block mb-1">
-              Database Storage
+          <div className="p-4 border border-foreground bg-neutral-100 sharp-corners">
+            <span className="editorial-label text-neutral-500 block mb-1">
+              DATASTORE ENGINE
             </span>
-            <p className="text-lg font-heading font-bold text-ink">SQLite (WAL Mode)</p>
-            <p className="text-xs text-ink/70 mt-1">Self-healing auto-migrations & seeded test data</p>
+            <p className="font-display text-xl font-bold text-foreground">PostgreSQL / SQLx</p>
+            <p className="font-body text-xs text-neutral-600 mt-1">
+              Connection-pooled relational store with declarative migrations and automated seed
+            </p>
           </div>
 
-          <div className="p-4 bg-[#f5f1e8] border border-ink wobbly-sm shadow-hard-sm">
-            <span className="font-heading font-bold text-xs uppercase text-ink/70 block mb-1">
-              Frontend Client
+          <div className="p-4 border border-foreground bg-neutral-100 sharp-corners">
+            <span className="editorial-label text-neutral-500 block mb-1">
+              FRONTEND INTERFACE
             </span>
-            <p className="text-lg font-heading font-bold text-ink">React 18 + Vite</p>
-            <p className="text-xs text-ink/70 mt-1">Tailwind CSS + adapted Aceternity UI</p>
+            <p className="font-display text-xl font-bold text-foreground">React 18 + Vite</p>
+            <p className="font-body text-xs text-neutral-600 mt-1">
+              Newsprint Editorial design system with Tailwind CSS & zero border-radius enforcement
+            </p>
           </div>
         </div>
-      </WobblyCard>
+      </div>
 
-      {/* 3. Design Tokens & Visual Showcase */}
-      <WobblyCard withTape tapeColor="pink" className="p-6">
-        <h4 className="text-xl font-heading font-bold text-ink mb-4 flex items-center gap-2">
-          <Palette className="w-5 h-5 text-accent-red" />
-          <span>Design Tokens Showcase</span>
-        </h4>
+      {/* 3. Newsprint Editorial Design Tokens */}
+      <div className="border-2 border-foreground bg-newsprint p-6 shadow-hard space-y-4">
+        <SectionHeader
+          number={3}
+          title="Newsprint Editorial Design Tokens"
+          subtitle="Official style guide and chromatic tokens for the editorial system"
+        />
 
-        <div className="space-y-4">
+        <div className="space-y-6">
+          {/* Color Palette */}
           <div>
-            <span className="font-heading font-bold text-sm block mb-2">Palette Colors:</span>
-            <div className="flex flex-wrap gap-3">
+            <span className="font-ui text-xs font-bold uppercase tracking-wider text-foreground block mb-2">
+              Color Palette (95% Neutral / 5% Red Accent)
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { name: 'Paper', hex: '#fdfbf7', border: true },
-                { name: 'Ink', hex: '#2d2d2d', text: '#fff' },
-                { name: 'Muted', hex: '#e5e0d8', border: true },
-                { name: 'Accent Red', hex: '#ff4d4d', text: '#fff' },
-                { name: 'Secondary Blue', hex: '#2d5da1', text: '#fff' },
-                { name: 'Post-it Yellow', hex: '#fff9c4', border: true },
-                { name: 'Post-it Pink', hex: '#ffd1dc', border: true },
+                { name: 'Newsprint Paper', hex: '#F9F9F7', bg: 'bg-[#F9F9F7]', text: 'text-foreground', border: 'border-foreground' },
+                { name: 'Ink Foreground', hex: '#111111', bg: 'bg-[#111111]', text: 'text-newsprint', border: 'border-foreground' },
+                { name: 'Editorial Accent', hex: '#CC0000', bg: 'bg-[#CC0000]', text: 'text-newsprint', border: 'border-[#CC0000]' },
+                { name: 'Muted Divider', hex: '#E5E5E0', bg: 'bg-[#E5E5E0]', text: 'text-foreground', border: 'border-foreground' },
               ].map((c) => (
                 <div
                   key={c.name}
-                  className="px-3 py-2 border-2 border-ink wobbly-sm shadow-hard-sm text-xs font-heading font-bold"
-                  style={{
-                    backgroundColor: c.hex,
-                    color: c.text || '#2d2d2d',
-                  }}
+                  className={`p-3 border-2 ${c.border} ${c.bg} ${c.text} sharp-corners flex flex-col justify-between h-20 shadow-hard-sm`}
                 >
-                  {c.name} ({c.hex})
+                  <span className="font-ui text-[11px] font-bold uppercase tracking-wider">{c.name}</span>
+                  <span className="font-data text-xs font-semibold">{c.hex}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div>
-            <span className="font-heading font-bold text-sm block mb-2">Typography:</span>
-            <div className="p-3 bg-paper border border-ink wobbly-sm space-y-1">
-              <p className="font-heading font-bold text-xl text-ink">
-                Headings: Kalam 700 (Expressive, organic handwriting)
-              </p>
-              <p className="font-body text-base text-ink">
-                Body: Patrick Hand 400 (Clean, casual handwriting print for maximum readability)
-              </p>
+          {/* Typography */}
+          <div className="pt-4 border-t border-neutral-300">
+            <span className="font-ui text-xs font-bold uppercase tracking-wider text-foreground block mb-2">
+              Four-Family Editorial Typography
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 border border-foreground bg-newsprint sharp-corners">
+                <span className="editorial-label text-neutral-500 block mb-1">
+                  DISPLAY SERIF (HEADLINES & NUMBERS)
+                </span>
+                <p className="font-display text-2xl font-bold text-foreground">
+                  Playfair Display
+                </p>
+                <p className="font-body text-xs text-neutral-600 mt-1">
+                  High-contrast modern serif used for mastheads, major headlines, and big numerical figures.
+                </p>
+              </div>
+
+              <div className="p-4 border border-foreground bg-newsprint sharp-corners">
+                <span className="editorial-label text-neutral-500 block mb-1">
+                  BODY SERIF (NARRATIVE TEXT)
+                </span>
+                <p className="font-body text-2xl text-foreground">
+                  Lora
+                </p>
+                <p className="font-body text-xs text-neutral-600 mt-1">
+                  Contemporary reading serif with brushed curves, optimized for comfortable editorial body copy.
+                </p>
+              </div>
+
+              <div className="p-4 border border-foreground bg-newsprint sharp-corners">
+                <span className="editorial-label text-neutral-500 block mb-1">
+                  USER INTERFACE (BUTTONS & METADATA)
+                </span>
+                <p className="font-ui text-2xl font-bold text-foreground uppercase tracking-wider">
+                  Inter
+                </p>
+                <p className="font-body text-xs text-neutral-600 mt-1">
+                  Precision neo-grotesque sans-serif used for navigational links, badges, and uppercase labels.
+                </p>
+              </div>
+
+              <div className="p-4 border border-foreground bg-newsprint sharp-corners">
+                <span className="editorial-label text-neutral-500 block mb-1">
+                  DATA & FINANCIAL FIGURES
+                </span>
+                <p className="font-data text-2xl font-bold text-foreground">
+                  JetBrains Mono
+                </p>
+                <p className="font-body text-xs text-neutral-600 mt-1">
+                  Clean monospace typeface used for currency sums, timestamps, percentages, and serial numbers.
+                </p>
+              </div>
             </div>
           </div>
         </div>
-      </WobblyCard>
+      </div>
     </div>
   );
 }

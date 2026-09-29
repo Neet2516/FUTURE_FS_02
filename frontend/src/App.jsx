@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { AuthProvider } from './context/AuthContext';
-import { Layout } from './components/layout/Layout';
+import { Masthead } from './components/editorial/Masthead';
+import { EditorialNav } from './components/editorial/EditorialNav';
+import { EditorialFooter } from './components/editorial/EditorialFooter';
 import { DashboardPage } from './pages/DashboardPage';
 import { PipelineKanbanPage } from './pages/PipelineKanbanPage';
 import { ContactsPage } from './pages/ContactsPage';
@@ -18,69 +20,64 @@ export function AppContent() {
     setRefreshKey((k) => k + 1);
   };
 
-  const getPageTitle = () => {
-    switch (currentTab) {
-      case 'dashboard': return 'Sales Overview & Metrics';
-      case 'pipeline': return 'Deals & Pipeline Kanban';
-      case 'contacts': return 'Contacts & Leads';
-      case 'tasks': return 'Sticky Notes & Reminders';
-      case 'activity': return 'Audit Trail & Activity Log';
-      case 'settings': return 'Preferences & Design Guide';
-      default: return 'PaperCRM';
-    }
-  };
-
   return (
-    <Layout
-      currentTab={currentTab}
-      onSelectTab={setCurrentTab}
-      title={getPageTitle()}
-      onQuickAdd={() => setIsQuickAddOpen(true)}
-    >
-      {currentTab === 'dashboard' && (
-        <DashboardPage
-          key={refreshKey}
-          onNavigate={setCurrentTab}
-          onQuickAdd={() => setIsQuickAddOpen(true)}
-        />
-      )}
+    <div className="min-h-screen flex flex-col bg-newsprint text-foreground">
+      {/* Masthead */}
+      <Masthead />
 
-      {currentTab === 'pipeline' && (
-        <PipelineKanbanPage
-          key={refreshKey}
-          onQuickAdd={() => setIsQuickAddOpen(true)}
-        />
-      )}
+      {/* Navigation */}
+      <EditorialNav
+        currentTab={currentTab}
+        onSelectTab={setCurrentTab}
+        onQuickAdd={() => setIsQuickAddOpen(true)}
+      />
 
-      {currentTab === 'contacts' && (
-        <ContactsPage
-          key={refreshKey}
-          onQuickAdd={() => setIsQuickAddOpen(true)}
-        />
-      )}
+      {/* Main Content */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-8">
+        {currentTab === 'dashboard' && (
+          <DashboardPage
+            key={refreshKey}
+            onNavigate={setCurrentTab}
+            onQuickAdd={() => setIsQuickAddOpen(true)}
+          />
+        )}
+        {currentTab === 'pipeline' && (
+          <PipelineKanbanPage
+            key={refreshKey}
+            onQuickAdd={() => setIsQuickAddOpen(true)}
+          />
+        )}
+        {currentTab === 'contacts' && (
+          <ContactsPage
+            key={refreshKey}
+            onQuickAdd={() => setIsQuickAddOpen(true)}
+          />
+        )}
+        {currentTab === 'tasks' && (
+          <TasksPage
+            key={refreshKey}
+            onQuickAdd={() => setIsQuickAddOpen(true)}
+          />
+        )}
+        {currentTab === 'activity' && (
+          <ActivityLogPage
+            key={refreshKey}
+            onQuickAdd={() => setIsQuickAddOpen(true)}
+          />
+        )}
+        {currentTab === 'settings' && <SettingsPage />}
+      </main>
 
-      {currentTab === 'tasks' && (
-        <TasksPage
-          key={refreshKey}
-          onQuickAdd={() => setIsQuickAddOpen(true)}
-        />
-      )}
+      {/* Footer */}
+      <EditorialFooter />
 
-      {currentTab === 'activity' && (
-        <ActivityLogPage
-          key={refreshKey}
-          onQuickAdd={() => setIsQuickAddOpen(true)}
-        />
-      )}
-
-      {currentTab === 'settings' && <SettingsPage />}
-
+      {/* Quick Add Modal */}
       <QuickAddModal
         isOpen={isQuickAddOpen}
         onClose={() => setIsQuickAddOpen(false)}
         onCreated={handleQuickAddSuccess}
       />
-    </Layout>
+    </div>
   );
 }
 
