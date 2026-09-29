@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #fdfbf7;
+    background-image: radial-gradient(#dbd4c8 1.2px, transparent 1.2px);
+    background-size: 24px 24px;
+    color: #2d2d2d;
+    font-family: 'Patrick Hand', cursive, sans-serif;
+    font-size: 1.05rem;
+    line-height: 1.5;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Kalam', cursive, sans-serif;
+    font-weight: 700;
+    color: #2d2d2d;
+    letter-spacing: -0.01em;
+  }
+
+  /* Custom pencil scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #fdfbf7;
+    border-left: 1px dashed #2d2d2d;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2d2d2d;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #ff4d4d;
+  }
+}
+
+@layer utilities {
+  .wobbly {
+    border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  }
+  .wobbly-sm {
+    border-radius: 180px 10px 160px 12px / 12px 170px 10px 180px;
+  }
+  .wobbly-md {
+    border-radius: 240px 18px 230px 14px / 14px 230px 18px 240px;
+  }
+  .wobbly-badge {
+    border-radius: 90px 12px 80px 10px / 10px 85px 12px 90px;
+  }
+  .wobbly-card {
+    border-radius: 255px 25px 225px 25px / 25px 225px 25px 255px;
+  }
+
+  .shadow-hard {
+    box-shadow: 4px 4px 0px 0px #2d2d2d;
+  }
+  .shadow-hard-sm {
+    box-shadow: 2px 2px 0px 0px #2d2d2d;
+  }
+  .shadow-hard-lg {
+    box-shadow: 8px 8px 0px 0px #2d2d2d;
+  }
+  .shadow-hard-red {
+    box-shadow: 4px 4px 0px 0px #ff4d4d;
+  }
+  .shadow-hard-blue {
+    box-shadow: 4px 4px 0px 0px #2d5da1;
+  }
+
+  /* Physical tactile button press */
+  .btn-sketch {
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .btn-sketch:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px 0px #2d2d2d;
+  }
+  .btn-sketch:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px 0px #2d2d2d;
+  }
+
+  /* Semi-transparent washi tape effect */
+  .washi-tape {
+    background-color: rgba(235, 230, 220, 0.85);
+    backdrop-filter: blur(1px);
+    box-shadow: 0 1px 3px rgba(45, 45, 45, 0.15);
+    border-left: 2px dashed rgba(45, 45, 45, 0.3);
+    border-right: 2px dashed rgba(45, 45, 45, 0.3);
+  }
+
+  /* Red marker highlight */
+  .marker-highlight {
+    background: linear-gradient(104deg, rgba(255, 77, 77, 0) 0.9%, rgba(255, 77, 77, 0.2) 2.4%, rgba(255, 77, 77, 0.25) 5.8%, rgba(255, 77, 77, 0.1) 93%, rgba(255, 77, 77, 0) 96%);
+    padding: 0.1em 0.3em;
+    border-radius: 4px;
+  }
+
+  /* Yellow marker highlight */
+  .yellow-highlight {
+    background: linear-gradient(104deg, rgba(255, 249, 196, 0) 0.9%, rgba(255, 249, 196, 0.6) 2.4%, rgba(255, 249, 196, 0.8) 5.8%, rgba(255, 249, 196, 0.5) 93%, rgba(255, 249, 196, 0) 96%);
+    padding: 0.1em 0.3em;
+  }
+}
