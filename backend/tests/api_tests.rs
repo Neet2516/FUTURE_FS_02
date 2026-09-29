@@ -7,9 +7,18 @@ use papercrm_backend::{
     services::{ContactService, DashboardService, DealService, TaskService},
 };
 
+/// Helper to get a database pool for testing.
+/// Reads DATABASE_URL from environment (set via .env or CI).
+async fn test_pool() -> sqlx::PgPool {
+    dotenvy::dotenv().ok();
+    let database_url = std::env::var("DATABASE_URL")
+        .expect("DATABASE_URL must be set for tests");
+    db::init_pool(&database_url).await.expect("Failed to init test db")
+}
+
 #[tokio::test]
 async fn test_database_initialization_and_seeding() {
-    let pool = db::init_pool("sqlite::memory:").await.expect("Failed to init in-memory db");
+    let pool = test_pool().await;
     
     // Check that contacts were seeded
     let contacts = ContactService::list(&pool, ContactQuery {
@@ -38,7 +47,7 @@ async fn test_database_initialization_and_seeding() {
 
 #[tokio::test]
 async fn test_contact_crud_operations() {
-    let pool = db::init_pool("sqlite::memory:").await.expect("Failed to init db");
+    let pool = test_pool().await;
 
     // Create Contact
     let req = CreateContactRequest {
@@ -79,7 +88,7 @@ async fn test_contact_crud_operations() {
     let detail = ContactService::get_by_id(&pool, &created.id).await.expect("Get by id failed");
     assert_eq!(detail.contact.name, "Test Contact Updated");
 
-    // Delete Contact
+    // Delete Contact (cleanup)
     ContactService::delete(&pool, &created.id).await.expect("Delete failed");
     let fetch_result = ContactService::get_by_id(&pool, &created.id).await;
     assert!(fetch_result.is_err(), "Contact should no longer exist");
@@ -87,7 +96,7 @@ async fn test_contact_crud_operations() {
 
 #[tokio::test]
 async fn test_deal_stage_transition_and_activity_logging() {
-    let pool = db::init_pool("sqlite::memory:").await.expect("Failed to init db");
+    let pool = test_pool().await;
 
     let deal_req = CreateDealRequest {
         title: "Test Big Deal".to_string(),
@@ -112,11 +121,14 @@ async fn test_deal_stage_transition_and_activity_logging() {
     let stats = DashboardService::get_stats(&pool).await.expect("Failed to get stats");
     let won_stage = stats.stage_breakdown.iter().find(|s| s.stage == "Won").expect("Won stage not found");
     assert!(won_stage.count >= 1);
+
+    // Cleanup
+    DealService::delete(&pool, &deal.id).await.expect("Failed to cleanup deal");
 }
 
 #[tokio::test]
 async fn test_task_lifecycle() {
-    let pool = db::init_pool("sqlite::memory:").await.expect("Failed to init db");
+    let pool = test_pool().await;
 
     let task_req = CreateTaskRequest {
         title: "Call CFO tomorrow".to_string(),
@@ -141,4 +153,7 @@ async fn test_task_lifecycle() {
 
     let updated = TaskService::update(&pool, &task.id, update_req).await.expect("Update task failed");
     assert!(updated.completed);
+
+    // Cleanup
+    TaskService::delete(&pool, &task.id).await.expect("Failed to cleanup task");
 }

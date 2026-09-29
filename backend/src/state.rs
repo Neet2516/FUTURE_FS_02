@@ -1,13 +1,13 @@
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub db: SqlitePool,
+    pub db: PgPool,
     pub jwt_secret: String,
 }
 
 impl AppState {
-    pub fn new(db: SqlitePool, jwt_secret: String) -> Self {
+    pub fn new(db: PgPool, jwt_secret: String) -> Self {
         Self { db, jwt_secret }
     }
 }

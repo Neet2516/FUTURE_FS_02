@@ -1,23 +1,16 @@
 use crate::errors::AppError;
 use sqlx::{
-    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
-    SqlitePool,
+    postgres::PgPoolOptions,
+    PgPool,
 };
-use std::str::FromStr;
 use tracing::info;
 
-pub async fn init_pool(database_url: &str) -> Result<SqlitePool, AppError> {
-    let connection_options = SqliteConnectOptions::from_str(database_url)
-        .map_err(|e| AppError::Internal(format!("Invalid database connection string: {}", e)))?
-        .create_if_missing(true)
-        .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
-        .synchronous(sqlx::sqlite::SqliteSynchronous::Normal);
-
-    let pool = SqlitePoolOptions::new()
+pub async fn init_pool(database_url: &str) -> Result<PgPool, AppError> {
+    let pool = PgPoolOptions::new()
         .max_connections(10)
-        .connect_with(connection_options)
+        .connect(database_url)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to connect to SQLite: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("Failed to connect to PostgreSQL: {}", e)))?;
 
     run_migrations(&pool).await?;
     seed_data(&pool).await?;
@@ -25,7 +18,7 @@ pub async fn init_pool(database_url: &str) -> Result<SqlitePool, AppError> {
     Ok(pool)
 }
 
-pub async fn run_migrations(pool: &SqlitePool) -> Result<(), AppError> {
+pub async fn run_migrations(pool: &PgPool) -> Result<(), AppError> {
     info!("Running database schema migrations...");
 
     sqlx::query(
@@ -37,9 +30,16 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), AppError> {
             password_hash TEXT NOT NULL,
             role TEXT NOT NULL DEFAULT 'Sales Rep',
             avatar_color TEXT NOT NULL DEFAULT '#fff9c4',
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        "#,
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| AppError::Internal(format!("Migration failed (users): {}", e)))?;
 
+    sqlx::query(
+        r#"
         CREATE TABLE IF NOT EXISTS contacts (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
@@ -48,13 +48,20 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), AppError> {
             email TEXT NOT NULL,
             phone TEXT,
             status TEXT NOT NULL DEFAULT 'New',
-            lead_value REAL NOT NULL DEFAULT 0.0,
+            lead_value DOUBLE PRECISION NOT NULL DEFAULT 0.0,
             tags TEXT NOT NULL DEFAULT '[]',
             notes TEXT,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        "#,
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| AppError::Internal(format!("Migration failed (contacts): {}", e)))?;
 
+    sqlx::query(
+        r#"
         CREATE TABLE IF NOT EXISTS deals (
             id TEXT PRIMARY KEY,
             title TEXT NOT NULL,
@@ -62,54 +69,83 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), AppError> {
             contact_id TEXT,
             contact_name TEXT,
             stage TEXT NOT NULL DEFAULT 'Lead In',
-            value REAL NOT NULL DEFAULT 0.0,
+            value DOUBLE PRECISION NOT NULL DEFAULT 0.0,
             probability INTEGER NOT NULL DEFAULT 50,
             priority TEXT NOT NULL DEFAULT 'Medium',
             expected_close TEXT,
             notes TEXT,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE SET NULL
-        );
+        )
+        "#,
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| AppError::Internal(format!("Migration failed (deals): {}", e)))?;
 
+    sqlx::query(
+        r#"
         CREATE TABLE IF NOT EXISTS tasks (
             id TEXT PRIMARY KEY,
             title TEXT NOT NULL,
             due_date TEXT,
             priority TEXT NOT NULL DEFAULT 'Medium',
-            completed BOOLEAN NOT NULL DEFAULT 0,
+            completed BOOLEAN NOT NULL DEFAULT FALSE,
             color TEXT NOT NULL DEFAULT 'yellow',
             associated_type TEXT,
             associated_id TEXT,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        "#,
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| AppError::Internal(format!("Migration failed (tasks): {}", e)))?;
 
+    sqlx::query(
+        r#"
         CREATE TABLE IF NOT EXISTS activities (
             id TEXT PRIMARY KEY,
             activity_type TEXT NOT NULL,
             description TEXT NOT NULL,
             contact_id TEXT,
             deal_id TEXT,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE,
             FOREIGN KEY (deal_id) REFERENCES deals(id) ON DELETE CASCADE
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_contacts_status ON contacts(status);
-        CREATE INDEX IF NOT EXISTS idx_deals_stage ON deals(stage);
-        CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed);
-        CREATE INDEX IF NOT EXISTS idx_activities_created ON activities(created_at DESC);
+        )
         "#,
     )
     .execute(pool)
     .await
-    .map_err(|e| AppError::Internal(format!("Migration failed: {}", e)))?;
+    .map_err(|e| AppError::Internal(format!("Migration failed (activities): {}", e)))?;
+
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_contacts_status ON contacts(status)")
+        .execute(pool)
+        .await
+        .map_err(|e| AppError::Internal(format!("Migration failed (index): {}", e)))?;
+
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_deals_stage ON deals(stage)")
+        .execute(pool)
+        .await
+        .map_err(|e| AppError::Internal(format!("Migration failed (index): {}", e)))?;
+
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed)")
+        .execute(pool)
+        .await
+        .map_err(|e| AppError::Internal(format!("Migration failed (index): {}", e)))?;
+
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_activities_created ON activities(created_at DESC)")
+        .execute(pool)
+        .await
+        .map_err(|e| AppError::Internal(format!("Migration failed (index): {}", e)))?;
 
     info!("Database migrations applied successfully.");
     Ok(())
 }
 
-pub async fn seed_data(pool: &SqlitePool) -> Result<(), AppError> {
+pub async fn seed_data(pool: &PgPool) -> Result<(), AppError> {
     let user_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
         .fetch_one(pool)
         .await
@@ -128,7 +164,7 @@ pub async fn seed_data(pool: &SqlitePool) -> Result<(), AppError> {
         INSERT INTO users (id, name, email, password_hash, role, avatar_color, created_at)
         VALUES 
             ('usr_001', 'Sarah Miller', 'sarah@papercrm.io', 'demo_hash_sarah', 'Lead Account Executive', '#fff9c4', '2026-09-01 09:00:00'),
-            ('usr_002', 'Alex Chen', 'alex@papercrm.io', 'demo_hash_alex', 'Sales Director', '#ffd1dc', '2026-09-01 09:00:00');
+            ('usr_002', 'Alex Chen', 'alex@papercrm.io', 'demo_hash_alex', 'Sales Director', '#ffd1dc', '2026-09-01 09:00:00')
         "#,
     )
     .execute(pool)
@@ -148,7 +184,7 @@ pub async fn seed_data(pool: &SqlitePool) -> Result<(), AppError> {
             ('ct_007', 'Olivia Wang', 'NeoLogistics Global', 'COO', 'olivia@neologistics.com', '+1 (555) 890-1234', 'Negotiation', 52000.0, '["Supply Chain", "Mid-Market"]', 'Redlining Master Services Agreement clauses 4 and 9.', '2026-09-08 13:20:00', '2026-09-28 11:00:00'),
             ('ct_008', 'Samuel Green', 'Pinecrest Media', 'Creative Director', 'sam@pinecrest.media', '+1 (555) 901-2345', 'Lost', 15000.0, '["Media", "Budget Freeze"]', 'Postponed project until Q1 next year due to budget reallocation.', '2026-09-05 15:45:00', '2026-09-20 12:00:00'),
             ('ct_009', 'Aria Montgomery', 'Hyperion Aerospace', 'Principal Architect', 'aria@hyperionaero.com', '+1 (555) 012-3456', 'Qualified', 85000.0, '["Aerospace", "Security Focus"]', 'Requires on-premise container deployment and air-gapped support.', '2026-09-19 10:00:00', '2026-09-27 15:30:00'),
-            ('ct_010', 'Lucas Silva', 'Vortex Interactive', 'Product Lead', 'lucas@vortexplay.io', '+1 (555) 123-4567', 'New', 18000.0, '["Gaming", "Mobile"]', 'Referred by Chloe Bennett @ CloudWeave.', '2026-09-25 14:10:00', '2026-09-25 14:10:00');
+            ('ct_010', 'Lucas Silva', 'Vortex Interactive', 'Product Lead', 'lucas@vortexplay.io', '+1 (555) 123-4567', 'New', 18000.0, '["Gaming", "Mobile"]', 'Referred by Chloe Bennett @ CloudWeave.', '2026-09-25 14:10:00', '2026-09-25 14:10:00')
         "#,
     )
     .execute(pool)
@@ -168,7 +204,7 @@ pub async fn seed_data(pool: &SqlitePool) -> Result<(), AppError> {
             ('dl_007', 'Laboratory Sample Workflow SaaS', 'Synthetix BioTech', 'ct_006', 'Dev Patel', 'Lead In', 25000.0, 25, 'Low', '2026-12-10', 'First discovery call scheduled for Friday.', '2026-09-23 11:00:00', '2026-09-23 11:00:00'),
             ('dl_008', 'Mission Critical Telemetry Gateway', 'Hyperion Aerospace', 'ct_009', 'Aria Montgomery', 'Meeting Scheduled', 85000.0, 55, 'Urgent', '2026-11-15', 'Security clearance audit passed.', '2026-09-20 15:00:00', '2026-09-27 15:30:00'),
             ('dl_009', 'Asset Tracking Prototype', 'Pinecrest Media', 'ct_008', 'Samuel Green', 'Lost', 15000.0, 0, 'Low', '2026-09-20', 'Deferred to next financial year.', '2026-09-06 16:00:00', '2026-09-20 12:00:00'),
-            ('dl_010', 'Live Game Ops Analytics Engine', 'Vortex Interactive', 'ct_010', 'Lucas Silva', 'Lead In', 18000.0, 30, 'Medium', '2026-11-30', 'Requested architecture whitepaper.', '2026-09-26 10:15:00', '2026-09-26 10:15:00');
+            ('dl_010', 'Live Game Ops Analytics Engine', 'Vortex Interactive', 'ct_010', 'Lucas Silva', 'Lead In', 18000.0, 30, 'Medium', '2026-11-30', 'Requested architecture whitepaper.', '2026-09-26 10:15:00', '2026-09-26 10:15:00')
         "#,
     )
     .execute(pool)
@@ -179,12 +215,12 @@ pub async fn seed_data(pool: &SqlitePool) -> Result<(), AppError> {
         r#"
         INSERT INTO tasks (id, title, due_date, priority, completed, color, associated_type, associated_id, created_at)
         VALUES
-            ('tsk_001', 'Prepare revised pricing schedule for Liam @ Horizon Robotics', '2026-09-30', 'Urgent', 0, 'yellow', 'deal', 'dl_002', '2026-09-28 10:00:00'),
-            ('tsk_002', 'Send architecture whitepaper to Lucas Silva', '2026-10-01', 'Medium', 0, 'pink', 'contact', 'ct_010', '2026-09-28 11:30:00'),
-            ('tsk_003', 'Schedule live demo rehearsal with Elena Rostova', '2026-10-02', 'High', 0, 'green', 'deal', 'dl_003', '2026-09-27 14:00:00'),
-            ('tsk_004', 'Submit SOC2 compliance packet to Jane Cooper', '2026-09-29', 'Urgent', 1, 'yellow', 'contact', 'ct_001', '2026-09-25 09:00:00'),
-            ('tsk_005', 'Finalize onboarding checklist for Chloe @ CloudWeave', '2026-09-28', 'High', 1, 'blue', 'deal', 'dl_005', '2026-09-24 16:00:00'),
-            ('tsk_006', 'Quarterly sales pipeline review meeting with executive team', '2026-10-05', 'Medium', 0, 'yellow', NULL, NULL, '2026-09-28 17:00:00');
+            ('tsk_001', 'Prepare revised pricing schedule for Liam @ Horizon Robotics', '2026-09-30', 'Urgent', FALSE, 'yellow', 'deal', 'dl_002', '2026-09-28 10:00:00'),
+            ('tsk_002', 'Send architecture whitepaper to Lucas Silva', '2026-10-01', 'Medium', FALSE, 'pink', 'contact', 'ct_010', '2026-09-28 11:30:00'),
+            ('tsk_003', 'Schedule live demo rehearsal with Elena Rostova', '2026-10-02', 'High', FALSE, 'green', 'deal', 'dl_003', '2026-09-27 14:00:00'),
+            ('tsk_004', 'Submit SOC2 compliance packet to Jane Cooper', '2026-09-29', 'Urgent', TRUE, 'yellow', 'contact', 'ct_001', '2026-09-25 09:00:00'),
+            ('tsk_005', 'Finalize onboarding checklist for Chloe @ CloudWeave', '2026-09-28', 'High', TRUE, 'blue', 'deal', 'dl_005', '2026-09-24 16:00:00'),
+            ('tsk_006', 'Quarterly sales pipeline review meeting with executive team', '2026-10-05', 'Medium', FALSE, 'yellow', NULL, NULL, '2026-09-28 17:00:00')
         "#,
     )
     .execute(pool)
@@ -201,7 +237,7 @@ pub async fn seed_data(pool: &SqlitePool) -> Result<(), AppError> {
             ('act_004', 'Meeting', 'Demo preparation call with Elena Rostova @ QuantumLeap AI', 'ct_003', 'dl_003', '2026-09-27 10:00:00'),
             ('act_005', 'Note', 'Aria requested air-gapped docker-compose specs for review', 'ct_009', 'dl_008', '2026-09-27 15:30:00'),
             ('act_006', 'Stage Change', 'Deal "Kubernetes Multi-Cluster Orchestrator" marked as Closed Won! 🎉', 'ct_005', 'dl_005', '2026-09-24 17:00:00'),
-            ('act_007', 'Call', 'Introductory qualification phone call with Dev Patel', 'ct_006', 'dl_007', '2026-09-23 11:00:00');
+            ('act_007', 'Call', 'Introductory qualification phone call with Dev Patel', 'ct_006', 'dl_007', '2026-09-23 11:00:00')
         "#,
     )
     .execute(pool)

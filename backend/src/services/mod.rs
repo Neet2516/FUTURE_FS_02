@@ -8,19 +8,19 @@ use crate::{
     },
 };
 use chrono::Utc;
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 use uuid::Uuid;
 
 pub struct ContactService;
 
 impl ContactService {
-    pub async fn list(pool: &SqlitePool, query: ContactQuery) -> Result<Vec<Contact>, AppError> {
+    pub async fn list(pool: &PgPool, query: ContactQuery) -> Result<Vec<Contact>, AppError> {
         let mut sql = "SELECT * FROM contacts WHERE 1=1".to_string();
 
         if let Some(ref search) = query.search {
             if !search.trim().is_empty() {
                 sql.push_str(&format!(
-                    " AND (name LIKE '%{s}%' OR company LIKE '%{s}%' OR email LIKE '%{s}%')",
+                    " AND (name ILIKE '%{s}%' OR company ILIKE '%{s}%' OR email ILIKE '%{s}%')",
                     s = search.trim().replace('\'', "''")
                 ));
             }
@@ -47,19 +47,19 @@ impl ContactService {
         Ok(contacts)
     }
 
-    pub async fn get_by_id(pool: &SqlitePool, id: &str) -> Result<ContactDetail, AppError> {
-        let contact = sqlx::query_as::<_, Contact>("SELECT * FROM contacts WHERE id = ?")
+    pub async fn get_by_id(pool: &PgPool, id: &str) -> Result<ContactDetail, AppError> {
+        let contact = sqlx::query_as::<_, Contact>("SELECT * FROM contacts WHERE id = $1")
             .bind(id)
             .fetch_optional(pool)
             .await?
             .ok_or_else(|| AppError::NotFound(format!("Contact with id '{}' not found", id)))?;
 
-        let deals = sqlx::query_as::<_, Deal>("SELECT * FROM deals WHERE contact_id = ? ORDER BY created_at DESC")
+        let deals = sqlx::query_as::<_, Deal>("SELECT * FROM deals WHERE contact_id = $1 ORDER BY created_at DESC")
             .bind(id)
             .fetch_all(pool)
             .await?;
 
-        let activities = sqlx::query_as::<_, Activity>("SELECT * FROM activities WHERE contact_id = ? ORDER BY created_at DESC")
+        let activities = sqlx::query_as::<_, Activity>("SELECT * FROM activities WHERE contact_id = $1 ORDER BY created_at DESC")
             .bind(id)
             .fetch_all(pool)
             .await?;
@@ -71,7 +71,7 @@ impl ContactService {
         })
     }
 
-    pub async fn create(pool: &SqlitePool, req: CreateContactRequest) -> Result<Contact, AppError> {
+    pub async fn create(pool: &PgPool, req: CreateContactRequest) -> Result<Contact, AppError> {
         let id = format!("ct_{}", &Uuid::new_v4().to_string()[..8]);
         let now = Utc::now().to_rfc3339();
         let status = req.status.unwrap_or_else(|| "New".to_string());
@@ -82,7 +82,7 @@ impl ContactService {
         sqlx::query(
             r#"
             INSERT INTO contacts (id, name, company, title, email, phone, status, lead_value, tags, notes, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             "#,
         )
         .bind(&id)
@@ -112,7 +112,7 @@ impl ContactService {
         )
         .await;
 
-        let contact = sqlx::query_as::<_, Contact>("SELECT * FROM contacts WHERE id = ?")
+        let contact = sqlx::query_as::<_, Contact>("SELECT * FROM contacts WHERE id = $1")
             .bind(&id)
             .fetch_one(pool)
             .await?;
@@ -121,11 +121,11 @@ impl ContactService {
     }
 
     pub async fn update(
-        pool: &SqlitePool,
+        pool: &PgPool,
         id: &str,
         req: UpdateContactRequest,
     ) -> Result<Contact, AppError> {
-        let existing = sqlx::query_as::<_, Contact>("SELECT * FROM contacts WHERE id = ?")
+        let existing = sqlx::query_as::<_, Contact>("SELECT * FROM contacts WHERE id = $1")
             .bind(id)
             .fetch_optional(pool)
             .await?
@@ -149,8 +149,8 @@ impl ContactService {
         sqlx::query(
             r#"
             UPDATE contacts
-            SET name = ?, company = ?, title = ?, email = ?, phone = ?, status = ?, lead_value = ?, tags = ?, notes = ?, updated_at = ?
-            WHERE id = ?
+            SET name = $1, company = $2, title = $3, email = $4, phone = $5, status = $6, lead_value = $7, tags = $8, notes = $9, updated_at = $10
+            WHERE id = $11
             "#,
         )
         .bind(&name)
@@ -167,7 +167,7 @@ impl ContactService {
         .execute(pool)
         .await?;
 
-        let updated = sqlx::query_as::<_, Contact>("SELECT * FROM contacts WHERE id = ?")
+        let updated = sqlx::query_as::<_, Contact>("SELECT * FROM contacts WHERE id = $1")
             .bind(id)
             .fetch_one(pool)
             .await?;
@@ -175,8 +175,8 @@ impl ContactService {
         Ok(updated)
     }
 
-    pub async fn delete(pool: &SqlitePool, id: &str) -> Result<(), AppError> {
-        let result = sqlx::query("DELETE FROM contacts WHERE id = ?")
+    pub async fn delete(pool: &PgPool, id: &str) -> Result<(), AppError> {
+        let result = sqlx::query("DELETE FROM contacts WHERE id = $1")
             .bind(id)
             .execute(pool)
             .await?;
@@ -192,15 +192,15 @@ impl ContactService {
 pub struct DealService;
 
 impl DealService {
-    pub async fn list(pool: &SqlitePool) -> Result<Vec<Deal>, AppError> {
+    pub async fn list(pool: &PgPool) -> Result<Vec<Deal>, AppError> {
         let deals = sqlx::query_as::<_, Deal>("SELECT * FROM deals ORDER BY created_at DESC")
             .fetch_all(pool)
             .await?;
         Ok(deals)
     }
 
-    pub async fn get_by_id(pool: &SqlitePool, id: &str) -> Result<Deal, AppError> {
-        let deal = sqlx::query_as::<_, Deal>("SELECT * FROM deals WHERE id = ?")
+    pub async fn get_by_id(pool: &PgPool, id: &str) -> Result<Deal, AppError> {
+        let deal = sqlx::query_as::<_, Deal>("SELECT * FROM deals WHERE id = $1")
             .bind(id)
             .fetch_optional(pool)
             .await?
@@ -208,7 +208,7 @@ impl DealService {
         Ok(deal)
     }
 
-    pub async fn create(pool: &SqlitePool, req: CreateDealRequest) -> Result<Deal, AppError> {
+    pub async fn create(pool: &PgPool, req: CreateDealRequest) -> Result<Deal, AppError> {
         let id = format!("dl_{}", &Uuid::new_v4().to_string()[..8]);
         let now = Utc::now().to_rfc3339();
         let stage = req.stage.unwrap_or_else(|| "Lead In".to_string());
@@ -219,7 +219,7 @@ impl DealService {
         // Resolve contact name if contact_id is provided
         let mut contact_name = None;
         if let Some(ref cid) = req.contact_id {
-            if let Ok(Some(c)) = sqlx::query_as::<_, Contact>("SELECT * FROM contacts WHERE id = ?")
+            if let Ok(Some(c)) = sqlx::query_as::<_, Contact>("SELECT * FROM contacts WHERE id = $1")
                 .bind(cid)
                 .fetch_optional(pool)
                 .await
@@ -231,7 +231,7 @@ impl DealService {
         sqlx::query(
             r#"
             INSERT INTO deals (id, title, company, contact_id, contact_name, stage, value, probability, priority, expected_close, notes, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             "#,
         )
         .bind(&id)
@@ -262,7 +262,7 @@ impl DealService {
         )
         .await;
 
-        let deal = sqlx::query_as::<_, Deal>("SELECT * FROM deals WHERE id = ?")
+        let deal = sqlx::query_as::<_, Deal>("SELECT * FROM deals WHERE id = $1")
             .bind(&id)
             .fetch_one(pool)
             .await?;
@@ -270,7 +270,7 @@ impl DealService {
         Ok(deal)
     }
 
-    pub async fn update(pool: &SqlitePool, id: &str, req: UpdateDealRequest) -> Result<Deal, AppError> {
+    pub async fn update(pool: &PgPool, id: &str, req: UpdateDealRequest) -> Result<Deal, AppError> {
         let existing = Self::get_by_id(pool, id).await?;
         let title = req.title.unwrap_or(existing.title);
         let company = req.company.unwrap_or(existing.company);
@@ -285,7 +285,7 @@ impl DealService {
 
         let mut contact_name = existing.contact_name;
         if let Some(ref cid) = contact_id {
-            if let Ok(Some(c)) = sqlx::query_as::<_, Contact>("SELECT * FROM contacts WHERE id = ?")
+            if let Ok(Some(c)) = sqlx::query_as::<_, Contact>("SELECT * FROM contacts WHERE id = $1")
                 .bind(cid)
                 .fetch_optional(pool)
                 .await
@@ -297,8 +297,8 @@ impl DealService {
         sqlx::query(
             r#"
             UPDATE deals
-            SET title = ?, company = ?, contact_id = ?, contact_name = ?, stage = ?, value = ?, probability = ?, priority = ?, expected_close = ?, notes = ?, updated_at = ?
-            WHERE id = ?
+            SET title = $1, company = $2, contact_id = $3, contact_name = $4, stage = $5, value = $6, probability = $7, priority = $8, expected_close = $9, notes = $10, updated_at = $11
+            WHERE id = $12
             "#,
         )
         .bind(&title)
@@ -320,13 +320,13 @@ impl DealService {
         Ok(updated)
     }
 
-    pub async fn update_stage(pool: &SqlitePool, id: &str, new_stage: &str) -> Result<Deal, AppError> {
+    pub async fn update_stage(pool: &PgPool, id: &str, new_stage: &str) -> Result<Deal, AppError> {
         let existing = Self::get_by_id(pool, id).await?;
         let now = Utc::now().to_rfc3339();
 
         let old_stage = existing.stage.clone();
 
-        sqlx::query("UPDATE deals SET stage = ?, updated_at = ? WHERE id = ?")
+        sqlx::query("UPDATE deals SET stage = $1, updated_at = $2 WHERE id = $3")
             .bind(new_stage)
             .bind(&now)
             .bind(id)
@@ -355,8 +355,8 @@ impl DealService {
         Ok(updated)
     }
 
-    pub async fn delete(pool: &SqlitePool, id: &str) -> Result<(), AppError> {
-        let result = sqlx::query("DELETE FROM deals WHERE id = ?")
+    pub async fn delete(pool: &PgPool, id: &str) -> Result<(), AppError> {
+        let result = sqlx::query("DELETE FROM deals WHERE id = $1")
             .bind(id)
             .execute(pool)
             .await?;
@@ -372,14 +372,14 @@ impl DealService {
 pub struct TaskService;
 
 impl TaskService {
-    pub async fn list(pool: &SqlitePool) -> Result<Vec<Task>, AppError> {
+    pub async fn list(pool: &PgPool) -> Result<Vec<Task>, AppError> {
         let tasks = sqlx::query_as::<_, Task>("SELECT * FROM tasks ORDER BY completed ASC, created_at DESC")
             .fetch_all(pool)
             .await?;
         Ok(tasks)
     }
 
-    pub async fn create(pool: &SqlitePool, req: CreateTaskRequest) -> Result<Task, AppError> {
+    pub async fn create(pool: &PgPool, req: CreateTaskRequest) -> Result<Task, AppError> {
         let id = format!("tsk_{}", &Uuid::new_v4().to_string()[..8]);
         let now = Utc::now().to_rfc3339();
         let priority = req.priority.unwrap_or_else(|| "Medium".to_string());
@@ -388,7 +388,7 @@ impl TaskService {
         sqlx::query(
             r#"
             INSERT INTO tasks (id, title, due_date, priority, completed, color, associated_type, associated_id, created_at)
-            VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?)
+            VALUES ($1, $2, $3, $4, FALSE, $5, $6, $7, $8)
             "#,
         )
         .bind(&id)
@@ -402,7 +402,7 @@ impl TaskService {
         .execute(pool)
         .await?;
 
-        let task = sqlx::query_as::<_, Task>("SELECT * FROM tasks WHERE id = ?")
+        let task = sqlx::query_as::<_, Task>("SELECT * FROM tasks WHERE id = $1")
             .bind(&id)
             .fetch_one(pool)
             .await?;
@@ -410,8 +410,8 @@ impl TaskService {
         Ok(task)
     }
 
-    pub async fn update(pool: &SqlitePool, id: &str, req: UpdateTaskRequest) -> Result<Task, AppError> {
-        let existing = sqlx::query_as::<_, Task>("SELECT * FROM tasks WHERE id = ?")
+    pub async fn update(pool: &PgPool, id: &str, req: UpdateTaskRequest) -> Result<Task, AppError> {
+        let existing = sqlx::query_as::<_, Task>("SELECT * FROM tasks WHERE id = $1")
             .bind(id)
             .fetch_optional(pool)
             .await?
@@ -426,8 +426,8 @@ impl TaskService {
         sqlx::query(
             r#"
             UPDATE tasks
-            SET title = ?, due_date = ?, priority = ?, completed = ?, color = ?
-            WHERE id = ?
+            SET title = $1, due_date = $2, priority = $3, completed = $4, color = $5
+            WHERE id = $6
             "#,
         )
         .bind(&title)
@@ -439,7 +439,7 @@ impl TaskService {
         .execute(pool)
         .await?;
 
-        let updated = sqlx::query_as::<_, Task>("SELECT * FROM tasks WHERE id = ?")
+        let updated = sqlx::query_as::<_, Task>("SELECT * FROM tasks WHERE id = $1")
             .bind(id)
             .fetch_one(pool)
             .await?;
@@ -447,8 +447,8 @@ impl TaskService {
         Ok(updated)
     }
 
-    pub async fn delete(pool: &SqlitePool, id: &str) -> Result<(), AppError> {
-        let result = sqlx::query("DELETE FROM tasks WHERE id = ?")
+    pub async fn delete(pool: &PgPool, id: &str) -> Result<(), AppError> {
+        let result = sqlx::query("DELETE FROM tasks WHERE id = $1")
             .bind(id)
             .execute(pool)
             .await?;
@@ -464,9 +464,9 @@ impl TaskService {
 pub struct ActivityService;
 
 impl ActivityService {
-    pub async fn list(pool: &SqlitePool, limit: i64) -> Result<Vec<Activity>, AppError> {
+    pub async fn list(pool: &PgPool, limit: i64) -> Result<Vec<Activity>, AppError> {
         let activities = sqlx::query_as::<_, Activity>(
-            "SELECT * FROM activities ORDER BY created_at DESC LIMIT ?"
+            "SELECT * FROM activities ORDER BY created_at DESC LIMIT $1"
         )
         .bind(limit)
         .fetch_all(pool)
@@ -475,14 +475,14 @@ impl ActivityService {
         Ok(activities)
     }
 
-    pub async fn create(pool: &SqlitePool, req: CreateActivityRequest) -> Result<Activity, AppError> {
+    pub async fn create(pool: &PgPool, req: CreateActivityRequest) -> Result<Activity, AppError> {
         let id = format!("act_{}", &Uuid::new_v4().to_string()[..8]);
         let now = Utc::now().to_rfc3339();
 
         sqlx::query(
             r#"
             INSERT INTO activities (id, activity_type, description, contact_id, deal_id, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES ($1, $2, $3, $4, $5, $6)
             "#,
         )
         .bind(&id)
@@ -494,7 +494,7 @@ impl ActivityService {
         .execute(pool)
         .await?;
 
-        let activity = sqlx::query_as::<_, Activity>("SELECT * FROM activities WHERE id = ?")
+        let activity = sqlx::query_as::<_, Activity>("SELECT * FROM activities WHERE id = $1")
             .bind(&id)
             .fetch_one(pool)
             .await?;
@@ -506,7 +506,7 @@ impl ActivityService {
 pub struct DashboardService;
 
 impl DashboardService {
-    pub async fn get_stats(pool: &SqlitePool) -> Result<DashboardStats, AppError> {
+    pub async fn get_stats(pool: &PgPool) -> Result<DashboardStats, AppError> {
         // Calculate total pipeline value (all non-lost deals)
         let total_val: (Option<f64>,) = sqlx::query_as(
             "SELECT SUM(value) FROM deals WHERE stage != 'Lost'"
@@ -553,10 +553,10 @@ impl DashboardService {
         let total_contacts_count = contacts_cnt.0;
 
         // Tasks pending vs completed
-        let pending_tasks: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM tasks WHERE completed = 0")
+        let pending_tasks: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM tasks WHERE completed = FALSE")
             .fetch_one(pool)
             .await?;
-        let completed_tasks: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM tasks WHERE completed = 1")
+        let completed_tasks: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM tasks WHERE completed = TRUE")
             .fetch_one(pool)
             .await?;
 
@@ -574,7 +574,7 @@ impl DashboardService {
         let mut stage_breakdown = Vec::new();
         for st in stages {
             let row: (i64, Option<f64>) = sqlx::query_as(
-                "SELECT COUNT(*), SUM(value) FROM deals WHERE stage = ?"
+                "SELECT COUNT(*), SUM(value) FROM deals WHERE stage = $1"
             )
             .bind(st)
             .fetch_one(pool)
@@ -607,8 +607,8 @@ impl DashboardService {
 pub struct AuthService;
 
 impl AuthService {
-    pub async fn register(pool: &SqlitePool, req: RegisterRequest) -> Result<User, AppError> {
-        let existing = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = ?")
+    pub async fn register(pool: &PgPool, req: RegisterRequest) -> Result<User, AppError> {
+        let existing = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
             .bind(&req.email)
             .fetch_optional(pool)
             .await?;
@@ -627,7 +627,7 @@ impl AuthService {
         sqlx::query(
             r#"
             INSERT INTO users (id, name, email, password_hash, role, avatar_color, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             "#,
         )
         .bind(&id)
@@ -640,7 +640,7 @@ impl AuthService {
         .execute(pool)
         .await?;
 
-        let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ?")
+        let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
             .bind(&id)
             .fetch_one(pool)
             .await?;
@@ -648,8 +648,8 @@ impl AuthService {
         Ok(user)
     }
 
-    pub async fn login(pool: &SqlitePool, req: LoginRequest) -> Result<User, AppError> {
-        let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = ?")
+    pub async fn login(pool: &PgPool, req: LoginRequest) -> Result<User, AppError> {
+        let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
             .bind(&req.email)
             .fetch_optional(pool)
             .await?
@@ -659,8 +659,8 @@ impl AuthService {
         Ok(user)
     }
 
-    pub async fn get_user_by_id(pool: &SqlitePool, id: &str) -> Result<User, AppError> {
-        let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ?")
+    pub async fn get_user_by_id(pool: &PgPool, id: &str) -> Result<User, AppError> {
+        let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
             .bind(id)
             .fetch_optional(pool)
             .await?

@@ -1,7 +1,5 @@
 use papercrm_backend::{db, routes, state::AppState};
 use std::env;
-use std::fs;
-use std::path::Path;
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -19,18 +17,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    // 3. Ensure data directory exists if SQLite database is located inside a folder
-    let database_url = env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://crm.db?mode=rwc".to_string());
-    if let Some(path_str) = database_url.strip_prefix("sqlite://") {
-        let clean_path = path_str.split('?').next().unwrap_or(path_str);
-        if let Some(parent) = Path::new(clean_path).parent() {
-            if !parent.as_os_str().is_empty() {
-                let _ = fs::create_dir_all(parent);
-            }
-        }
-    }
+    // 3. Connect to PostgreSQL database
+    let database_url = env::var("DATABASE_URL")
+        .expect("DATABASE_URL must be set");
 
-    info!("Connecting to SQLite database: {}", database_url);
+    info!("Connecting to PostgreSQL database...");
     let pool = db::init_pool(&database_url).await?;
 
     let jwt_secret = env::var("JWT_SECRET").unwrap_or_else(|_| "papercrm-handdrawn-supersecret-jwt-key".to_string());

@@ -10,17 +10,15 @@ services:
     environment:
       - HOST=0.0.0.0
       - PORT=8080
-      - DATABASE_URL=sqlite:///app/data/crm.db?mode=rwc
+      - DATABASE_URL=postgresql://crm_rust_demo_user:cGf62wEz2GxWJt5qjY7m7olujizsljbE@dpg-datqcgmk1f9s73996ikg-a.singapore-postgres.render.com/crm_rust_demo?sslmode=require
       - JWT_SECRET=${JWT_SECRET:-papercrm-handdrawn-supersecret-jwt-key}
       - RUST_LOG=papercrm_backend=info,tower_http=info
-    volumes:
-      - crm_data:/app/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 5s
       timeout: 3s
       retries: 5
-      start_period: 5s
+      start_period: 10s
     networks:
       - crm_network
 
@@ -44,10 +42,6 @@ services:
         condition: service_healthy
     networks:
       - crm_network
-
-volumes:
-  crm_data:
-    driver: local
 
 networks:
   crm_network:

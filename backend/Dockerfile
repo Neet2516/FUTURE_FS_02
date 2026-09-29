@@ -1,12 +1,12 @@
-# Multi-stage Dockerfile for PaperCRM Rust Backend
+# Multi-stage Dockerfile for PaperCRM Rust Backend (PostgreSQL)
 FROM rust:slim-bookworm AS builder
 
 WORKDIR /usr/src/app
 
-# Install build dependencies
+# Install build dependencies (PostgreSQL client dev libs)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
-    libsqlite3-dev \
+    libpq-dev \
     gcc \
     libc6-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -29,21 +29,17 @@ FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
-    libsqlite3-0 \
+    libpq5 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-
-# Create directory for persistent SQLite database
-RUN mkdir -p /app/data
 
 # Copy binary from builder
 COPY --from=builder /usr/src/app/target/release/papercrm-backend /app/papercrm-backend
 
 ENV HOST=0.0.0.0
 ENV PORT=8080
-ENV DATABASE_URL=sqlite:///app/data/crm.db?mode=rwc
 ENV RUST_LOG=papercrm_backend=info,tower_http=info
 
 EXPOSE 8080
