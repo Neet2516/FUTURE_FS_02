@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider } from './context/AuthContext';
+import { ToastProvider } from './components/common/Toast';
 import { Masthead } from './components/editorial/Masthead';
 import { EditorialNav } from './components/editorial/EditorialNav';
 import { EditorialFooter } from './components/editorial/EditorialFooter';
@@ -10,11 +11,27 @@ import { TasksPage } from './pages/TasksPage';
 import { ActivityLogPage } from './pages/ActivityLogPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { QuickAddModal } from './components/common/QuickAddModal';
+import { tasksApi } from './services/api';
 
 export function AppContent() {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [pendingTaskCount, setPendingTaskCount] = useState(0);
+
+  // Fetch pending task count for nav badge
+  const refreshPendingCount = async () => {
+    try {
+      const tasks = await tasksApi.list();
+      setPendingTaskCount(tasks.filter((t) => !t.completed).length);
+    } catch {
+      // silent fail — nav badge is non-critical
+    }
+  };
+
+  useEffect(() => {
+    refreshPendingCount();
+  }, [refreshKey]);
 
   const handleQuickAddSuccess = () => {
     setRefreshKey((k) => k + 1);
@@ -30,6 +47,7 @@ export function AppContent() {
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
         onQuickAdd={() => setIsQuickAddOpen(true)}
+        pendingTaskCount={pendingTaskCount}
       />
 
       {/* Main Content */}
@@ -84,7 +102,9 @@ export function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
     </AuthProvider>
   );
 }

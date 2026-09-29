@@ -250,6 +250,31 @@
   .ticker-animate:hover {
     animation-play-state: paused;
   }
+
+  /* Toast slide-in animation */
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateX(100%) translateY(0);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0) translateY(0);
+    }
+  }
+  .animate-toast-in {
+    animation: toast-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* Row highlight for overdue items */
+  .overdue-row {
+    background-color: rgba(204, 0, 0, 0.04);
+  }
+
+  /* Table hover */
+  .table-row-hover:hover {
+    background-color: rgba(0, 0, 0, 0.025);
+  }
 }
 
 @layer utilities {

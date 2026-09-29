@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { dashboardApi } from '../services/api';
+import React, { useEffect, useState, useMemo } from 'react';
+import { dashboardApi, dealsApi, tasksApi, contactsApi } from '../services/api';
 import { EditorialButton } from '../components/editorial/EditorialButton';
 import { EditorialBadge } from '../components/editorial/EditorialBadge';
-import { EditorialCard, EditorialCardHeader, EditorialCardBody } from '../components/editorial/EditorialCard';
+import { EditorialCard } from '../components/editorial/EditorialCard';
 import { StatBlock } from '../components/editorial/StatBlock';
 import { SectionHeader } from '../components/editorial/SectionHeader';
 import { NewsTicker } from '../components/editorial/NewsTicker';
 import { LoadingState } from '../components/common/LoadingState';
+import { formatRelativeTime, formatCurrency, isOverdue, formatDate } from '../utils/format';
 import {
   ArrowUpRight,
   Award,
@@ -14,24 +15,34 @@ import {
   Mail,
   Calendar,
   FileText,
-  TrendingUp,
-  Flame,
-  CheckSquare,
-  Users,
+  AlertTriangle,
   Clock,
-  Briefcase,
+  User,
+  Zap,
+  CheckSquare,
 } from 'lucide-react';
 
 export function DashboardPage({ onNavigate, onQuickAdd }) {
   const [stats, setStats] = useState(null);
+  const [deals, setDeals] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchStats = async () => {
+  const fetchAll = async () => {
     try {
       setLoading(true);
-      const data = await dashboardApi.getStats();
-      setStats(data);
+      const [statsData, dealsData, tasksData, contactsData] = await Promise.all([
+        dashboardApi.getStats(),
+        dealsApi.list(),
+        tasksApi.list(),
+        contactsApi.list(),
+      ]);
+      setStats(statsData);
+      setDeals(dealsData);
+      setTasks(tasksData);
+      setContacts(contactsData);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -40,8 +51,77 @@ export function DashboardPage({ onNavigate, onQuickAdd }) {
   };
 
   useEffect(() => {
-    fetchStats();
+    fetchAll();
   }, []);
+
+  // Derive "Needs Attention" items from real data
+  const needsAttention = useMemo(() => {
+    const items = [];
+
+    // Overdue tasks
+    const overdueTasks = tasks.filter(
+      (t) => !t.completed && t.due_date && isOverdue(t.due_date)
+    );
+    if (overdueTasks.length > 0) {
+      items.push({
+        type: 'overdue_tasks',
+        severity: 'high',
+        label: 'OVERDUE TASKS',
+        headline: `${overdueTasks.length} task${overdueTasks.length > 1 ? 's' : ''} past due date`,
+        detail: overdueTasks.slice(0, 2).map((t) => t.title).join(', '),
+        action: () => onNavigate('tasks'),
+        actionLabel: 'View Tasks →',
+      });
+    }
+
+    // New contacts (status = "New") — need outreach
+    const newContacts = contacts.filter((c) => c.status === 'New');
+    if (newContacts.length > 0) {
+      items.push({
+        type: 'new_leads',
+        severity: 'medium',
+        label: 'NEW LEADS',
+        headline: `${newContacts.length} uncontacted lead${newContacts.length > 1 ? 's' : ''} in queue`,
+        detail: newContacts.slice(0, 2).map((c) => `${c.name} @ ${c.company}`).join('; '),
+        action: () => onNavigate('contacts'),
+        actionLabel: 'View Directory →',
+      });
+    }
+
+    // Deals stuck in early stages (Lead In / Contact Made)
+    const stuckDeals = deals.filter(
+      (d) => d.stage === 'Lead In' || d.stage === 'Contact Made'
+    );
+    if (stuckDeals.length > 2) {
+      items.push({
+        type: 'stalled',
+        severity: 'low',
+        label: 'STALLED PIPELINE',
+        headline: `${stuckDeals.length} deals stagnant in early stages`,
+        detail: `${formatCurrency(stuckDeals.reduce((s, d) => s + (d.value || 0), 0))} in unadvanced negotiations`,
+        action: () => onNavigate('pipeline'),
+        actionLabel: 'Open Pipeline →',
+      });
+    }
+
+    // Deals with expired close dates
+    const expiredDeals = deals.filter(
+      (d) => d.expected_close && isOverdue(d.expected_close) && !['Won', 'Lost'].includes(d.stage)
+    );
+    if (expiredDeals.length > 0) {
+      items.push({
+        type: 'expired_close',
+        severity: 'high',
+        label: 'EXPIRED TARGET DATES',
+        headline: `${expiredDeals.length} deal${expiredDeals.length > 1 ? 's' : ''} past expected close`,
+        detail: expiredDeals.slice(0, 2).map((d) => d.title).join(', '),
+        action: () => onNavigate('pipeline'),
+        actionLabel: 'Review Pipeline →',
+      });
+    }
+
+    return items;
+  }, [deals, tasks, contacts, onNavigate]);
 
   if (loading) return <LoadingState message="Compiling Front Page edition & pipeline figures..." />;
 
@@ -52,15 +132,12 @@ export function DashboardPage({ onNavigate, onQuickAdd }) {
           Unable to Load Dispatch
         </h3>
         <p className="font-body text-neutral-600 mb-4">{error || 'Could not fetch dashboard data'}</p>
-        <EditorialButton variant="primary" onClick={fetchStats}>
+        <EditorialButton variant="primary" onClick={fetchAll}>
           Retry Query
         </EditorialButton>
       </div>
     );
   }
-
-  const formatCurrency = (val) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
   const getActivityIcon = (type) => {
     switch (type) {
@@ -72,9 +149,16 @@ export function DashboardPage({ onNavigate, onQuickAdd }) {
     }
   };
 
+  const getSeverityStyles = (severity) => {
+    switch (severity) {
+      case 'high': return 'border-l-4 border-l-accent bg-red-50/40';
+      case 'medium': return 'border-l-4 border-l-foreground bg-neutral-50';
+      default: return 'border-l-4 border-l-neutral-400 bg-newsprint';
+    }
+  };
+
   const maxStageValue = Math.max(...stats.stage_breakdown.map((s) => s.value), 1);
 
-  // Ticker items from recent activities and metrics
   const tickerItems = [
     `TOTAL PIPELINE: ${formatCurrency(stats.total_pipeline_value)}`,
     `ACTIVE OPPORTUNITIES: ${stats.active_deals_count} DEALS`,
@@ -82,6 +166,7 @@ export function DashboardPage({ onNavigate, onQuickAdd }) {
     `WON REVENUE: ${stats.won_deals_count} CLOSED DEALS`,
     `CLIENT DIRECTORY: ${stats.total_contacts_count} CONTACTS`,
     `PENDING REMINDERS: ${stats.pending_tasks_count} ACTION ITEMS`,
+    ...(needsAttention.length > 0 ? [`⚠ NEEDS ATTENTION: ${needsAttention.length} ITEMS REQUIRE ACTION`] : []),
   ];
 
   return (
@@ -89,7 +174,50 @@ export function DashboardPage({ onNavigate, onQuickAdd }) {
       {/* 1. Breaking News Ticker */}
       <NewsTicker items={tickerItems} />
 
-      {/* 2. Lead Article / Hero Pipeline Overview */}
+      {/* 2. NEEDS ATTENTION — only shown when there are items */}
+      {needsAttention.length > 0 && (
+        <div>
+          <SectionHeader
+            number="⚠"
+            title="Needs Attention"
+            subtitle="Critical items requiring immediate action from the editorial desk"
+          />
+          <div className="border-2 border-foreground shadow-hard divide-y divide-foreground bg-newsprint">
+            {needsAttention.map((item, idx) => (
+              <div
+                key={idx}
+                className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors hover:bg-neutral-100/50 ${getSeverityStyles(item.severity)}`}
+              >
+                <div className="flex items-start gap-3">
+                  <AlertTriangle
+                    className={`w-4 h-4 flex-shrink-0 mt-0.5 ${
+                      item.severity === 'high' ? 'text-accent' : 'text-neutral-600'
+                    }`}
+                  />
+                  <div>
+                    <span className="editorial-label text-neutral-500 block mb-0.5">
+                      {item.label}
+                    </span>
+                    <p className="font-display font-bold text-base text-foreground leading-snug">
+                      {item.headline}
+                    </p>
+                    {item.detail && (
+                      <p className="font-body text-xs text-neutral-600 mt-0.5 line-clamp-1">
+                        {item.detail}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <EditorialButton variant="ghost" size="sm" onClick={item.action}>
+                  {item.actionLabel}
+                </EditorialButton>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 3. Lead Article / Hero Pipeline Overview */}
       <div className="border-2 border-foreground bg-newsprint shadow-hard">
         <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-foreground">
           {/* Main Headline Section (7 cols) */}
@@ -109,7 +237,10 @@ export function DashboardPage({ onNavigate, onQuickAdd }) {
               </h2>
 
               <p className="font-body text-base sm:text-lg text-neutral-700 leading-relaxed max-w-xl">
-                Commercial negotiations remain resilient across <strong>{stats.active_deals_count} active opportunities</strong> currently progressing through the sales funnel. Win conversion stands at <strong>{stats.win_rate_percentage}%</strong> across all qualified opportunities.
+                Commercial negotiations remain resilient across{' '}
+                <strong>{stats.active_deals_count} active opportunities</strong> currently
+                progressing through the sales funnel. Win conversion stands at{' '}
+                <strong>{stats.win_rate_percentage}%</strong> across all qualified opportunities.
               </p>
             </div>
 
@@ -122,11 +253,7 @@ export function DashboardPage({ onNavigate, onQuickAdd }) {
                 <span>Examine Pipeline Board</span>
                 <ArrowUpRight className="w-4 h-4" />
               </EditorialButton>
-              <EditorialButton
-                variant="secondary"
-                size="md"
-                onClick={onQuickAdd}
-              >
+              <EditorialButton variant="secondary" size="md" onClick={onQuickAdd}>
                 + File New Deal
               </EditorialButton>
             </div>
@@ -149,13 +276,13 @@ export function DashboardPage({ onNavigate, onQuickAdd }) {
                 <StatBlock
                   label="CONTACTS"
                   value={stats.total_contacts_count}
-                  sublabel="Verified entries"
+                  sublabel={`${contacts.filter(c => c.status === 'New').length} new uncontacted`}
                   onClick={() => onNavigate('contacts')}
                 />
                 <StatBlock
                   label="PENDING TO-DO"
                   value={stats.pending_tasks_count}
-                  sublabel={`${stats.completed_tasks_count} completed`}
+                  sublabel={`${tasks.filter(t => !t.completed && t.due_date && isOverdue(t.due_date)).length} overdue`}
                   onClick={() => onNavigate('tasks')}
                 />
                 <div className="p-4 border border-foreground bg-newsprint sharp-corners">
@@ -173,14 +300,34 @@ export function DashboardPage({ onNavigate, onQuickAdd }) {
               </div>
             </div>
 
+            {/* Urgent tasks preview */}
+            {tasks.filter(t => !t.completed && t.priority === 'Urgent').length > 0 && (
+              <div className="p-3 border border-dashed border-accent/60 bg-red-50/30">
+                <span className="editorial-label text-accent block mb-2 flex items-center gap-1.5">
+                  <Zap className="w-3 h-3" />
+                  URGENT QUEUE
+                </span>
+                {tasks
+                  .filter(t => !t.completed && t.priority === 'Urgent')
+                  .slice(0, 2)
+                  .map((t) => (
+                    <div key={t.id} className="flex items-center gap-2 mb-1">
+                      <CheckSquare className="w-3 h-3 text-accent flex-shrink-0" />
+                      <span className="font-body text-xs text-foreground line-clamp-1">{t.title}</span>
+                    </div>
+                  ))}
+              </div>
+            )}
+
             <div className="p-3 border border-dashed border-foreground/40 bg-newsprint text-xs font-body text-neutral-600">
-              <strong className="font-ui uppercase tracking-wider text-foreground">Editor's Memo:</strong> Deal progression velocity is tracked in real-time. Review stagnant negotiations in the pipeline room.
+              <strong className="font-ui uppercase tracking-wider text-foreground">Editor's Memo:</strong>{' '}
+              Deal progression velocity is tracked in real-time. Review stagnant negotiations in the pipeline room.
             </div>
           </div>
         </div>
       </div>
 
-      {/* 3. Editorial Two-Column Dispatch: Deal Flow vs Activity Record */}
+      {/* 4. Editorial Two-Column Dispatch: Deal Flow vs Activity Record */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Deal Flow by Stage (7 cols) */}
         <div className="lg:col-span-7">
@@ -213,7 +360,15 @@ export function DashboardPage({ onNavigate, onQuickAdd }) {
                         <span className="font-data text-neutral-400">
                           {String(idx + 1).padStart(2, '0')}
                         </span>
-                        <span className={isWon ? 'text-foreground font-black' : isLost ? 'text-neutral-500' : 'text-foreground'}>
+                        <span
+                          className={
+                            isWon
+                              ? 'text-foreground font-black'
+                              : isLost
+                              ? 'text-neutral-500'
+                              : 'text-foreground'
+                          }
+                        >
                           {item.stage}
                         </span>
                         <EditorialBadge
@@ -228,7 +383,6 @@ export function DashboardPage({ onNavigate, onQuickAdd }) {
                       </span>
                     </div>
 
-                    {/* Editorial Progress Bar */}
                     <div className="w-full h-3 bg-neutral-200 border border-foreground sharp-corners overflow-hidden">
                       <div
                         className={`h-full transition-all duration-500 ${
@@ -248,7 +402,7 @@ export function DashboardPage({ onNavigate, onQuickAdd }) {
           </EditorialCard>
         </div>
 
-        {/* Activity Log / Dispatch Wire (5 cols) */}
+        {/* Activity Wire (5 cols) */}
         <div className="lg:col-span-5">
           <SectionHeader
             number={2}
@@ -284,8 +438,8 @@ export function DashboardPage({ onNavigate, onQuickAdd }) {
                           {act.activity_type}
                         </span>
                       </div>
-                      <span className="font-data text-[10px] text-neutral-500">
-                        {act.created_at.split('T')[0] || act.created_at.split(' ')[0]}
+                      <span className="font-data text-[10px] text-neutral-400 whitespace-nowrap">
+                        {formatRelativeTime(act.created_at)}
                       </span>
                     </div>
                     <p className="font-body text-sm text-neutral-800 leading-snug line-clamp-2">
