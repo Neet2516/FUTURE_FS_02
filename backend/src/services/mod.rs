@@ -73,7 +73,7 @@ impl ContactService {
 
     pub async fn create(pool: &PgPool, req: CreateContactRequest) -> Result<Contact, AppError> {
         let id = format!("ct_{}", &Uuid::new_v4().to_string()[..8]);
-        let now = Utc::now().to_rfc3339();
+        let now = Utc::now().naive_utc();
         let status = req.status.unwrap_or_else(|| "New".to_string());
         let lead_value = req.lead_value.unwrap_or(0.0);
         let tags_json = serde_json::to_string(&req.tags.unwrap_or_default())
@@ -144,7 +144,7 @@ impl ContactService {
         } else {
             existing.tags
         };
-        let now = Utc::now().to_rfc3339();
+        let now = Utc::now().naive_utc();
 
         sqlx::query(
             r#"
@@ -210,7 +210,7 @@ impl DealService {
 
     pub async fn create(pool: &PgPool, req: CreateDealRequest) -> Result<Deal, AppError> {
         let id = format!("dl_{}", &Uuid::new_v4().to_string()[..8]);
-        let now = Utc::now().to_rfc3339();
+        let now = Utc::now().naive_utc();
         let stage = req.stage.unwrap_or_else(|| "Lead In".to_string());
         let value = req.value.unwrap_or(0.0);
         let probability = req.probability.unwrap_or(50);
@@ -281,7 +281,7 @@ impl DealService {
         let priority = req.priority.unwrap_or(existing.priority);
         let expected_close = req.expected_close.or(existing.expected_close);
         let notes = req.notes.or(existing.notes);
-        let now = Utc::now().to_rfc3339();
+        let now = Utc::now().naive_utc();
 
         let mut contact_name = existing.contact_name;
         if let Some(ref cid) = contact_id {
@@ -322,7 +322,7 @@ impl DealService {
 
     pub async fn update_stage(pool: &PgPool, id: &str, new_stage: &str) -> Result<Deal, AppError> {
         let existing = Self::get_by_id(pool, id).await?;
-        let now = Utc::now().to_rfc3339();
+        let now = Utc::now().naive_utc();
 
         let old_stage = existing.stage.clone();
 
@@ -381,7 +381,7 @@ impl TaskService {
 
     pub async fn create(pool: &PgPool, req: CreateTaskRequest) -> Result<Task, AppError> {
         let id = format!("tsk_{}", &Uuid::new_v4().to_string()[..8]);
-        let now = Utc::now().to_rfc3339();
+        let now = Utc::now().naive_utc();
         let priority = req.priority.unwrap_or_else(|| "Medium".to_string());
         let color = req.color.unwrap_or_else(|| "yellow".to_string());
 
@@ -477,7 +477,7 @@ impl ActivityService {
 
     pub async fn create(pool: &PgPool, req: CreateActivityRequest) -> Result<Activity, AppError> {
         let id = format!("act_{}", &Uuid::new_v4().to_string()[..8]);
-        let now = Utc::now().to_rfc3339();
+        let now = Utc::now().naive_utc();
 
         sqlx::query(
             r#"
@@ -618,7 +618,7 @@ impl AuthService {
         }
 
         let id = format!("usr_{}", &Uuid::new_v4().to_string()[..8]);
-        let now = Utc::now().to_rfc3339();
+        let now = Utc::now().naive_utc();
         let role = req.role.unwrap_or_else(|| "Sales Rep".to_string());
         // Simple hash placeholder for demo CRM
         let password_hash = format!("hash_{}", req.password);

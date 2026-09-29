@@ -1,3 +1,4 @@
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
@@ -10,7 +11,7 @@ pub struct User {
     pub password_hash: String,
     pub role: String,
     pub avatar_color: String,
-    pub created_at: String,
+    pub created_at: NaiveDateTime,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -25,8 +26,8 @@ pub struct Contact {
     pub lead_value: f64,
     pub tags: String, // Stored as JSON string
     pub notes: Option<String>,
-    pub created_at: String,
-    pub updated_at: String,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,12 +47,12 @@ pub struct Deal {
     pub contact_name: Option<String>,
     pub stage: String,
     pub value: f64,
-    pub probability: i64,
+    pub probability: i32,
     pub priority: String,
     pub expected_close: Option<String>,
     pub notes: Option<String>,
-    pub created_at: String,
-    pub updated_at: String,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -64,7 +65,7 @@ pub struct Task {
     pub color: String,
     pub associated_type: Option<String>,
     pub associated_id: Option<String>,
-    pub created_at: String,
+    pub created_at: NaiveDateTime,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -74,7 +75,7 @@ pub struct Activity {
     pub description: String,
     pub contact_id: Option<String>,
     pub deal_id: Option<String>,
-    pub created_at: String,
+    pub created_at: NaiveDateTime,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
