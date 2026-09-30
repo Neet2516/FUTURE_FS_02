@@ -6,6 +6,8 @@ import { SectionHeader } from '../components/editorial/SectionHeader';
 import { LoadingState } from '../components/common/LoadingState';
 import { useToast } from '../components/common/Toast';
 import { formatCurrency, isOverdue, formatDate } from '../utils/format';
+import { DonutBreakdownChart } from '../components/charts/DonutBreakdownChart';
+import { PipelineFunnelChart } from '../components/charts/PipelineFunnelChart';
 import {
   Plus,
   ArrowRight,
@@ -16,6 +18,7 @@ import {
   User,
   AlertTriangle,
   Trash2,
+  PieChart,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -38,6 +41,7 @@ export function PipelineKanbanPage({ onQuickAdd }) {
   const [error, setError] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   const fetchDeals = async () => {
     try {
@@ -96,6 +100,15 @@ export function PipelineKanbanPage({ onQuickAdd }) {
   const totalBoardValue = deals.reduce((sum, d) => sum + (d.value || 0), 0);
   const activeDeals = deals.filter((d) => !['Won', 'Lost'].includes(d.stage));
 
+  const stageBreakdown = STAGES.map((stage) => {
+    const stageDeals = deals.filter((d) => d.stage === stage);
+    return {
+      stage,
+      count: stageDeals.length,
+      value: stageDeals.reduce((sum, d) => sum + (d.value || 0), 0),
+    };
+  });
+
   return (
     <div className="space-y-6">
       {/* Board Header */}
@@ -109,7 +122,7 @@ export function PipelineKanbanPage({ onQuickAdd }) {
               {activeDeals.length} Active
             </EditorialBadge>
             <EditorialBadge variant="accent" size="xs">
-              {deals.filter(d => d.stage === 'Won').length} Won
+              {deals.filter((d) => d.stage === 'Won').length} Won
             </EditorialBadge>
           </div>
           <h2 className="font-display text-3xl font-bold text-foreground">
@@ -122,11 +135,34 @@ export function PipelineKanbanPage({ onQuickAdd }) {
           </p>
         </div>
 
-        <EditorialButton variant="primary" size="md" onClick={onQuickAdd}>
-          <Plus className="w-4 h-4" />
-          <span>+ File Opportunity</span>
-        </EditorialButton>
+        <div className="flex items-center gap-3">
+          <EditorialButton
+            variant="secondary"
+            size="md"
+            onClick={() => setShowAnalytics((v) => !v)}
+          >
+            <PieChart className="w-4 h-4" />
+            <span>{showAnalytics ? 'Hide Visual Charts' : 'Visual Charts'}</span>
+          </EditorialButton>
+
+          <EditorialButton variant="primary" size="md" onClick={onQuickAdd}>
+            <Plus className="w-4 h-4" />
+            <span>+ File Opportunity</span>
+          </EditorialButton>
+        </div>
       </div>
+
+      {/* Collapsible Visual Charts Drawer */}
+      {showAnalytics && (
+        <div className="border-2 border-foreground bg-newsprint shadow-hard p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 animate-soft-fade-in">
+          <div className="border border-neutral-300 bg-white/40 p-2 sm:p-4">
+            <DonutBreakdownChart data={stageBreakdown} />
+          </div>
+          <div className="border border-neutral-300 bg-white/40 p-2 sm:p-4">
+            <PipelineFunnelChart data={stageBreakdown} />
+          </div>
+        </div>
+      )}
 
       {/* Kanban Board */}
       <div className="flex gap-4 overflow-x-auto pb-6 pt-1 select-none items-start">

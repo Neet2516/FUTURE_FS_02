@@ -8,6 +8,10 @@ import { SectionHeader } from '../components/editorial/SectionHeader';
 import { NewsTicker } from '../components/editorial/NewsTicker';
 import { LoadingState } from '../components/common/LoadingState';
 import { formatRelativeTime, formatCurrency, isOverdue, formatDate } from '../utils/format';
+import { DonutBreakdownChart } from '../components/charts/DonutBreakdownChart';
+import { PipelineFunnelChart } from '../components/charts/PipelineFunnelChart';
+import { DealVelocityBarChart } from '../components/charts/DealVelocityBarChart';
+import { WinRateGaugeChart } from '../components/charts/WinRateGaugeChart';
 import {
   ArrowUpRight,
   Award,
@@ -20,6 +24,11 @@ import {
   User,
   Zap,
   CheckSquare,
+  BarChart3,
+  PieChart,
+  Filter,
+  Layers,
+  TrendingUp,
 } from 'lucide-react';
 
 export function DashboardPage({ onNavigate, onQuickAdd }) {
@@ -29,6 +38,7 @@ export function DashboardPage({ onNavigate, onQuickAdd }) {
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeChartTab, setActiveChartTab] = useState('funnel');
 
   const fetchAll = async () => {
     try {
@@ -327,99 +337,185 @@ export function DashboardPage({ onNavigate, onQuickAdd }) {
         </div>
       </div>
 
-      {/* 4. Editorial Two-Column Dispatch: Deal Flow vs Activity Record */}
+      {/* 4. Editorial Two-Column Dispatch: Deal Flow & Visual Analytics vs Activity Record */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Deal Flow by Stage (7 cols) */}
+        {/* Deal Flow & Visual Analytics (7 cols) */}
         <div className="lg:col-span-7">
           <SectionHeader
             number={1}
-            title="Deal Flow Distribution"
-            subtitle="Volume and monetary exposure across all seven pipeline stages"
+            title="Pipeline Visual Analytics & Conversion"
+            subtitle="Interactive funnel, portfolio donut & capital exposure distribution"
             action={
-              <EditorialButton
-                variant="ghost"
-                size="sm"
-                onClick={() => onNavigate('pipeline')}
-              >
-                View Kanban →
-              </EditorialButton>
+              <div className="flex items-center gap-1 bg-neutral-200 p-0.5 border border-foreground">
+                <button
+                  type="button"
+                  onClick={() => setActiveChartTab('funnel')}
+                  className={`px-2.5 py-1 text-xs font-ui font-bold flex items-center gap-1.5 transition-all ${
+                    activeChartTab === 'funnel'
+                      ? 'bg-foreground text-newsprint shadow-sm'
+                      : 'text-neutral-700 hover:text-foreground'
+                  }`}
+                  title="Conversion Funnel"
+                >
+                  <Filter className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Funnel</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveChartTab('donut')}
+                  className={`px-2.5 py-1 text-xs font-ui font-bold flex items-center gap-1.5 transition-all ${
+                    activeChartTab === 'donut'
+                      ? 'bg-foreground text-newsprint shadow-sm'
+                      : 'text-neutral-700 hover:text-foreground'
+                  }`}
+                  title="Portfolio Donut"
+                >
+                  <PieChart className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Donut</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveChartTab('bars')}
+                  className={`px-2.5 py-1 text-xs font-ui font-bold flex items-center gap-1.5 transition-all ${
+                    activeChartTab === 'bars'
+                      ? 'bg-foreground text-newsprint shadow-sm'
+                      : 'text-neutral-700 hover:text-foreground'
+                  }`}
+                  title="Capital Columns"
+                >
+                  <BarChart3 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Columns</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveChartTab('ledger')}
+                  className={`px-2.5 py-1 text-xs font-ui font-bold flex items-center gap-1.5 transition-all ${
+                    activeChartTab === 'ledger'
+                      ? 'bg-foreground text-newsprint shadow-sm'
+                      : 'text-neutral-700 hover:text-foreground'
+                  }`}
+                  title="Stage Ledger"
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Ledger</span>
+                </button>
+              </div>
             }
           />
 
-          <EditorialCard className="p-6">
-            <div className="space-y-4">
-              {stats.stage_breakdown.map((item, idx) => {
-                const pct = Math.round((item.value / maxStageValue) * 100);
-                const isWon = item.stage === 'Won';
-                const isLost = item.stage === 'Lost';
+          <EditorialCard className="p-2 sm:p-4 min-h-[380px] flex flex-col justify-center">
+            {activeChartTab === 'funnel' && (
+              <PipelineFunnelChart data={stats.stage_breakdown} />
+            )}
+            {activeChartTab === 'donut' && (
+              <DonutBreakdownChart data={stats.stage_breakdown} />
+            )}
+            {activeChartTab === 'bars' && (
+              <DealVelocityBarChart data={stats.stage_breakdown} />
+            )}
+            {activeChartTab === 'ledger' && (
+              <div className="p-4 space-y-4">
+                <div className="flex items-center justify-between border-b border-neutral-300 pb-2">
+                  <span className="editorial-label text-neutral-500">
+                    NUMERICAL STAGE LEDGER
+                  </span>
+                  <span className="font-data text-xs text-neutral-600">
+                    Peak: {formatCurrency(maxStageValue)}
+                  </span>
+                </div>
+                {stats.stage_breakdown.map((item, idx) => {
+                  const pct = Math.round((item.value / maxStageValue) * 100);
+                  const isWon = item.stage === 'Won';
+                  const isLost = item.stage === 'Lost';
 
-                return (
-                  <div key={item.stage} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs font-ui font-bold">
-                      <div className="flex items-center gap-2">
-                        <span className="font-data text-neutral-400">
-                          {String(idx + 1).padStart(2, '0')}
+                  return (
+                    <div key={item.stage} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs font-ui font-bold">
+                        <div className="flex items-center gap-2">
+                          <span className="font-data text-neutral-400">
+                            {String(idx + 1).padStart(2, '0')}
+                          </span>
+                          <span
+                            className={
+                              isWon
+                                ? 'text-foreground font-black'
+                                : isLost
+                                ? 'text-neutral-500'
+                                : 'text-foreground'
+                            }
+                          >
+                            {item.stage}
+                          </span>
+                          <EditorialBadge
+                            variant={isWon ? 'accent' : 'default'}
+                            size="xs"
+                          >
+                            {item.count} {item.count === 1 ? 'deal' : 'deals'}
+                          </EditorialBadge>
+                        </div>
+                        <span className="font-data font-semibold text-foreground">
+                          {formatCurrency(item.value)}
                         </span>
-                        <span
-                          className={
-                            isWon
-                              ? 'text-foreground font-black'
-                              : isLost
-                              ? 'text-neutral-500'
-                              : 'text-foreground'
-                          }
-                        >
-                          {item.stage}
-                        </span>
-                        <EditorialBadge
-                          variant={isWon ? 'accent' : 'default'}
-                          size="xs"
-                        >
-                          {item.count} {item.count === 1 ? 'deal' : 'deals'}
-                        </EditorialBadge>
                       </div>
-                      <span className="font-data font-semibold text-foreground">
-                        {formatCurrency(item.value)}
-                      </span>
-                    </div>
 
-                    <div className="w-full h-3 bg-neutral-200 border border-foreground sharp-corners overflow-hidden">
-                      <div
-                        className={`h-full transition-all duration-500 ${
-                          isWon
-                            ? 'bg-accent'
-                            : isLost
-                            ? 'bg-neutral-400'
-                            : 'bg-foreground'
-                        }`}
-                        style={{ width: `${Math.max(pct, 2)}%` }}
-                      />
+                      <div className="w-full h-3 bg-neutral-200 border border-foreground sharp-corners overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-500 ${
+                            isWon
+                              ? 'bg-accent'
+                              : isLost
+                              ? 'bg-neutral-400'
+                              : 'bg-foreground'
+                          }`}
+                          style={{ width: `${Math.max(pct, 2)}%` }}
+                        />
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </EditorialCard>
         </div>
 
-        {/* Activity Wire (5 cols) */}
-        <div className="lg:col-span-5">
-          <SectionHeader
-            number={2}
-            title="Chronological Wire"
-            subtitle="Latest interactions, stage advancements & recorded dispatches"
-            action={
-              <EditorialButton
-                variant="ghost"
-                size="sm"
-                onClick={() => onNavigate('activity')}
-              >
-                Full Archive →
-              </EditorialButton>
-            }
-          />
+        {/* Efficiency Gauge & Chronological Wire (5 cols) */}
+        <div className="lg:col-span-5 space-y-6">
+          <div>
+            <SectionHeader
+              number={2}
+              title="Win Velocity Gauge"
+              subtitle="Closed won efficiency versus pipeline targets"
+            />
+            <EditorialCard className="p-2 sm:p-4">
+              <WinRateGaugeChart
+                winRate={stats.win_rate_percentage}
+                wonCount={stats.won_deals_count}
+                activeCount={stats.active_deals_count}
+                totalPipeline={stats.total_pipeline_value}
+              />
+            </EditorialCard>
+          </div>
 
-          <EditorialCard className="p-0">
+          <div>
+            <SectionHeader
+              number={3}
+              title="Chronological Wire"
+              subtitle="Latest interactions, stage advancements & recorded dispatches"
+              action={
+                <EditorialButton
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onNavigate('activity')}
+                >
+                  Full Archive →
+                </EditorialButton>
+              }
+            />
+
+            <EditorialCard className="p-0">
             <div className="divide-y divide-neutral-200 max-h-[440px] overflow-y-auto">
               {stats.recent_activities.length === 0 ? (
                 <p className="p-6 text-sm font-body text-neutral-500 text-center">
@@ -452,6 +548,7 @@ export function DashboardPage({ onNavigate, onQuickAdd }) {
           </EditorialCard>
         </div>
       </div>
+    </div>
     </div>
   );
 }
