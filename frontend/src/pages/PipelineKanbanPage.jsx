@@ -226,24 +226,29 @@ export function PipelineKanbanPage({ onQuickAdd }) {
                         {/* Header */}
                         <div>
                           <div className="flex items-start justify-between gap-2 mb-2">
-                            <h5 className="font-display text-sm font-bold text-foreground leading-snug flex-1">
+                            <h5
+                              className="font-display text-sm font-bold text-foreground leading-snug flex-1 min-w-0 break-words"
+                              title={deal.title}
+                            >
                               {deal.title}
                             </h5>
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                              <EditorialBadge
-                                variant={PRIORITY_BADGE[deal.priority] || 'default'}
-                                size="xs"
-                              >
-                                {deal.priority}
-                              </EditorialBadge>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              {deal.priority && (
+                                <EditorialBadge
+                                  variant={PRIORITY_BADGE[deal.priority] || 'default'}
+                                  size="xs"
+                                >
+                                  {deal.priority}
+                                </EditorialBadge>
+                              )}
                               <button
                                 type="button"
                                 onClick={(e) => handleDelete(deal.id, deal.title, e)}
                                 disabled={deletingId === deal.id}
-                                className="p-0.5 text-neutral-300 hover:text-accent transition-colors"
+                                className="p-1 text-neutral-400 hover:text-accent hover:bg-neutral-200/60 border border-transparent hover:border-neutral-300 transition-colors"
                                 title="Remove deal"
                               >
-                                <Trash2 className="w-3 h-3" />
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </div>
