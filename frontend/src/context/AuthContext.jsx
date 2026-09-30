@@ -1,60 +1,55 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authApi } from '../services/api';
 
-const AuthContext = createContext();
-
-const DEMO_USERS = [
-  {
-    id: 'usr_001',
-    name: 'Sarah Miller',
-    email: 'sarah@papercrm.io',
-    role: 'Lead Account Executive',
-    avatarColor: '#fff9c4',
-    title: 'Senior AE (West Coast)',
-  },
-  {
-    id: 'usr_002',
-    name: 'Alex Chen',
-    email: 'alex@papercrm.io',
-    role: 'Sales Director',
-    avatarColor: '#ffd1dc',
-    title: 'Global Sales Director',
-  },
-];
+const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(DEMO_USERS[0]);
-  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(() => localStorage.getItem('papercrm_token'));
+  const [loading, setLoading] = useState(true); // loading until we resolve session
 
+  // On mount — try to rehydrate from localStorage
   useEffect(() => {
-    // Attempt to load current user from API or fallback to primary demo
-    authApi.me()
-      .then(remoteUser => {
-        if (remoteUser) {
-          setUser({
-            ...remoteUser,
-            avatarColor: remoteUser.avatar_color || '#fff9c4',
-          });
-        }
-      })
-      .catch(() => {
-        // Fallback to local demo user
-      });
+    const savedToken = localStorage.getItem('papercrm_token');
+    const savedUser = localStorage.getItem('papercrm_user');
+
+    if (savedToken && savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+        setToken(savedToken);
+      } catch {
+        localStorage.removeItem('papercrm_token');
+        localStorage.removeItem('papercrm_user');
+      }
+    }
+    setLoading(false);
   }, []);
 
-  const switchDemoUser = (userId) => {
-    const selected = DEMO_USERS.find(u => u.id === userId) || DEMO_USERS[0];
-    setUser(selected);
-    localStorage.setItem('papercrm_user_id', selected.id);
+  const login = (userData, authToken) => {
+    setUser(userData);
+    setToken(authToken);
+    localStorage.setItem('papercrm_token', authToken);
+    localStorage.setItem('papercrm_user', JSON.stringify(userData));
   };
 
+  const logout = () => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem('papercrm_token');
+    localStorage.removeItem('papercrm_user');
+  };
+
+  const isAuthenticated = Boolean(user && token);
+
   return (
-    <AuthContext.Provider value={{ user, setUser, demoUsers: DEMO_USERS, switchDemoUser, loading }}>
+    <AuthContext.Provider value={{ user, token, loading, isAuthenticated, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
 }

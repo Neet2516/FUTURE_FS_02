@@ -1,15 +1,16 @@
 import React from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { LogOut } from 'lucide-react';
 
-export function Masthead() {
-  const { user } = useAuth();
+export function Masthead({ user, onLogout }) {
   const today = new Date();
-  const dateStr = today.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).toUpperCase();
+  const dateStr = today
+    .toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+    .toUpperCase();
 
   return (
     <header className="bg-newsprint border-b-[3px] border-foreground">
@@ -21,11 +22,32 @@ export function Masthead() {
         <span className="font-data text-[0.625rem] text-neutral-500 tracking-wider hidden sm:block">
           {dateStr}
         </span>
-        <div className="flex items-center gap-2">
-          <span className="font-ui text-[0.625rem] font-semibold text-neutral-500 uppercase tracking-wider">
-            {user?.name || 'Editor'}
-          </span>
-          <span className="w-1.5 h-1.5 bg-accent" />
+        {/* User identity + logout */}
+        <div className="flex items-center gap-3">
+          {user && (
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-accent" />
+              <span className="font-ui text-[0.625rem] font-semibold text-neutral-600 uppercase tracking-wider">
+                {user.name || user.email}
+              </span>
+              {user.role && (
+                <span className="hidden sm:inline font-data text-[0.5625rem] text-neutral-400 border-l border-neutral-300 pl-2">
+                  {user.role}
+                </span>
+              )}
+            </div>
+          )}
+          {onLogout && (
+            <button
+              type="button"
+              onClick={onLogout}
+              title="Sign out"
+              className="flex items-center gap-1 font-ui text-[0.5625rem] font-bold uppercase tracking-wider text-neutral-400 hover:text-accent transition-colors"
+            >
+              <LogOut className="w-3 h-3" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </button>
+          )}
         </div>
       </div>
 
