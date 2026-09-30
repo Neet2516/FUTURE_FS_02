@@ -275,6 +275,67 @@
   .table-row-hover:hover {
     background-color: rgba(0, 0, 0, 0.025);
   }
+
+  /* Soft Editorial Shimmer Animation */
+  @keyframes editorial-shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+  .animate-editorial-shimmer {
+    background: linear-gradient(90deg, #F0ECE1 0%, #E2DDD0 50%, #F0ECE1 100%);
+    background-size: 200% 100%;
+    animation: editorial-shimmer 2.2s ease-in-out infinite;
+  }
+
+  /* Press Runner Hairline Animation */
+  @keyframes press-runner {
+    0% {
+      transform: translateX(-100%);
+    }
+    50% {
+      transform: translateX(120%);
+    }
+    100% {
+      transform: translateX(300%);
+    }
+  }
+  .animate-press-runner {
+    animation: press-runner 2.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  }
+
+  /* Soft Breathe animation for broadside press icons */
+  @keyframes soft-breathe {
+    0%, 100% {
+      opacity: 0.95;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.7;
+      transform: scale(0.985);
+    }
+  }
+  .animate-soft-breathe {
+    animation: soft-breathe 3s ease-in-out infinite;
+  }
+
+  /* Soft fade-in for page transitions */
+  @keyframes soft-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .animate-soft-fade-in {
+    animation: soft-fade-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
 }
 
 @layer utilities {

@@ -22,7 +22,10 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('papercrm_user');
       }
     }
-    setLoading(false);
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 550);
+    return () => clearTimeout(timer);
   }, []);
 
   const login = (userData, authToken) => {

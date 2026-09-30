@@ -13,20 +13,7 @@ import { ActivityLogPage } from './pages/ActivityLogPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { QuickAddModal } from './components/common/QuickAddModal';
 import { tasksApi } from './services/api';
-
-function LoadingScreen() {
-  return (
-    <div className="min-h-screen bg-newsprint flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="font-display text-4xl font-black text-foreground tracking-tight mb-3">PaperCRM</h1>
-        <div className="flex items-center justify-center gap-1.5">
-          <span className="w-1.5 h-1.5 bg-foreground animate-pulse" />
-          <span className="font-data text-xs text-neutral-500 uppercase tracking-widest">Initialising session...</span>
-        </div>
-      </div>
-    </div>
-  );
-}
+import { EditorialOpeningScreen } from './components/editorial/EditorialOpeningScreen';
 
 export function AppContent() {
   const { user, isAuthenticated, loading, login, logout } = useAuth();
@@ -51,8 +38,8 @@ export function AppContent() {
 
   const handleQuickAddSuccess = () => setRefreshKey((k) => k + 1);
 
-  // 1. While checking stored session
-  if (loading) return <LoadingScreen />;
+  // 1. While checking stored session (opening website / refreshing)
+  if (loading) return <EditorialOpeningScreen />;
 
   // 2. Not authenticated — show login/register
   if (!isAuthenticated) {
