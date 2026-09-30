@@ -31,6 +31,17 @@ const CharCount = ({ value, max, warnAt }) => {
   );
 };
 
+const Field = ({ label, error, children, count }) => (
+  <div>
+    <div className="flex items-center justify-between mb-2">
+      <label className="editorial-label text-neutral-500">{label}</label>
+      {count}
+    </div>
+    {children}
+    {error && <p className="mt-1 font-ui text-[11px] text-accent font-semibold">{error}</p>}
+  </div>
+);
+
 export function QuickAddModal({ isOpen, onClose, onCreated }) {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState('deal');
@@ -166,17 +177,6 @@ export function QuickAddModal({ isOpen, onClose, onCreated }) {
         ? 'text-foreground border-accent'
         : 'text-neutral-400 border-transparent hover:text-foreground hover:border-neutral-300'
     }`;
-
-  const Field = ({ label, error, children, count }) => (
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        <label className="editorial-label text-neutral-500">{label}</label>
-        {count}
-      </div>
-      {children}
-      {error && <p className="mt-1 font-ui text-[11px] text-accent font-semibold">{error}</p>}
-    </div>
-  );
 
   return (
     <EditorialModal isOpen={isOpen} onClose={handleClose} title="File New Report" subtitle="Create a new deal, contact, or task entry" size="md">
