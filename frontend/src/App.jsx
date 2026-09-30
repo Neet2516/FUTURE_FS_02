@@ -36,6 +36,20 @@ export function AppContent() {
     if (isAuthenticated) refreshPendingCount();
   }, [refreshKey, isAuthenticated]);
 
+  // Global keyboard shortcut: Ctrl+K / Cmd+K opens Quick Add modal
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        if (isAuthenticated) {
+          setIsQuickAddOpen((prev) => !prev);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [isAuthenticated]);
+
   const handleQuickAddSuccess = () => setRefreshKey((k) => k + 1);
 
   // 1. While checking stored session (opening website / refreshing)

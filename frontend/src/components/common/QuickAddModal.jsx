@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { EditorialModal } from '../editorial/EditorialModal';
 import { EditorialButton } from '../editorial/EditorialButton';
 import { contactsApi, dealsApi, tasksApi } from '../../services/api';
@@ -36,6 +36,52 @@ export function QuickAddModal({ isOpen, onClose, onCreated }) {
   const [activeTab, setActiveTab] = useState('deal');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Field refs for seamless keyboard navigation
+  const dealTitleRef = useRef(null);
+  const dealCompanyRef = useRef(null);
+  const dealValueRef = useRef(null);
+  const dealCloseRef = useRef(null);
+  const dealNotesRef = useRef(null);
+
+  const contactNameRef = useRef(null);
+  const contactCompanyRef = useRef(null);
+  const contactTitleRef = useRef(null);
+  const contactEmailRef = useRef(null);
+  const contactPhoneRef = useRef(null);
+  const contactLeadValueRef = useRef(null);
+
+  const taskTitleRef = useRef(null);
+  const taskDateRef = useRef(null);
+
+  // Auto-focus first input on modal open or tab switch
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        if (activeTab === 'deal') dealTitleRef.current?.focus();
+        else if (activeTab === 'contact') contactNameRef.current?.focus();
+        else if (activeTab === 'task') taskTitleRef.current?.focus();
+      }, 70);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, activeTab]);
+
+  // Advance to next field on Enter; submit on Ctrl+Enter
+  const handleAdvance = (e, nextRef, submitFn) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      submitFn?.(e);
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (nextRef?.current) {
+        nextRef.current.focus();
+      } else if (submitFn) {
+        submitFn(e);
+      }
+    }
+  };
 
   const [dealForm, setDealForm] = useState({
     title: '', company: '', value: '', stage: 'Lead In',
@@ -155,12 +201,14 @@ export function QuickAddModal({ isOpen, onClose, onCreated }) {
             count={<CharCount value={dealForm.title} max={CONSTRAINTS.dealTitle.maxLength} />}
           >
             <input
+              ref={dealTitleRef}
               type="text"
               required
               minLength={CONSTRAINTS.dealTitle.minLength}
               maxLength={CONSTRAINTS.dealTitle.maxLength}
               value={dealForm.title}
               onChange={(e) => setDealForm({ ...dealForm, title: e.target.value })}
+              onKeyDown={(e) => handleAdvance(e, dealCompanyRef, handleSubmitDeal)}
               placeholder="Enterprise Cloud Deployment"
               className="input-editorial"
             />
@@ -169,18 +217,21 @@ export function QuickAddModal({ isOpen, onClose, onCreated }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <Field label="Company *">
               <input
+                ref={dealCompanyRef}
                 type="text"
                 required
                 minLength={1}
                 maxLength={CONSTRAINTS.company.maxLength}
                 value={dealForm.company}
                 onChange={(e) => setDealForm({ ...dealForm, company: e.target.value })}
+                onKeyDown={(e) => handleAdvance(e, dealValueRef, handleSubmitDeal)}
                 placeholder="Apex Dynamics"
                 className="input-editorial"
               />
             </Field>
             <Field label="Value (USD) *">
               <input
+                ref={dealValueRef}
                 type="number"
                 required
                 min={CONSTRAINTS.value.min}
@@ -188,6 +239,7 @@ export function QuickAddModal({ isOpen, onClose, onCreated }) {
                 step={CONSTRAINTS.value.step}
                 value={dealForm.value}
                 onChange={(e) => setDealForm({ ...dealForm, value: e.target.value })}
+                onKeyDown={(e) => handleAdvance(e, dealCloseRef, handleSubmitDeal)}
                 placeholder="45000"
                 className="input-editorial"
               />
@@ -231,10 +283,12 @@ export function QuickAddModal({ isOpen, onClose, onCreated }) {
 
           <Field label="Expected Close Date">
             <input
+              ref={dealCloseRef}
               type="date"
               value={dealForm.expected_close}
               min={new Date().toISOString().split('T')[0]}
               onChange={(e) => setDealForm({ ...dealForm, expected_close: e.target.value })}
+              onKeyDown={(e) => handleAdvance(e, dealNotesRef, handleSubmitDeal)}
               className="input-editorial"
             />
           </Field>
@@ -244,20 +298,36 @@ export function QuickAddModal({ isOpen, onClose, onCreated }) {
             count={<CharCount value={dealForm.notes} max={CONSTRAINTS.notes.maxLength} />}
           >
             <textarea
+              ref={dealNotesRef}
               rows={2}
               maxLength={CONSTRAINTS.notes.maxLength}
               value={dealForm.notes}
               onChange={(e) => setDealForm({ ...dealForm, notes: e.target.value })}
-              placeholder="Key context, requirements, or negotiation notes..."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault();
+                  handleSubmitDeal(e);
+                }
+              }}
+              placeholder="Key context, requirements, or negotiation notes... (Ctrl+Enter to save)"
               className="textarea-editorial"
             />
           </Field>
 
-          <div className="flex justify-end gap-3 pt-2 border-t border-neutral-200">
-            <EditorialButton variant="ghost" onClick={handleClose} type="button">Cancel</EditorialButton>
-            <EditorialButton type="submit" variant="primary" disabled={loading}>
-              {loading ? 'Filing...' : 'File Deal'}
-            </EditorialButton>
+          <div className="flex items-center justify-between pt-3 border-t border-neutral-200">
+            <div className="font-data text-[10px] text-neutral-400 hidden sm:flex items-center gap-1.5">
+              <span><kbd className="bg-neutral-200 text-neutral-700 px-1 py-0.5 border border-neutral-300">Enter</kbd> Next</span>
+              <span>•</span>
+              <span><kbd className="bg-neutral-200 text-neutral-700 px-1 py-0.5 border border-neutral-300">Ctrl+Enter</kbd> Save</span>
+              <span>•</span>
+              <span><kbd className="bg-neutral-200 text-neutral-700 px-1 py-0.5 border border-neutral-300">Esc</kbd> Cancel</span>
+            </div>
+            <div className="flex justify-end gap-3 w-full sm:w-auto">
+              <EditorialButton variant="ghost" onClick={handleClose} type="button">Cancel</EditorialButton>
+              <EditorialButton type="submit" variant="primary" disabled={loading}>
+                {loading ? 'Filing...' : 'File Deal'}
+              </EditorialButton>
+            </div>
           </div>
         </form>
       )}
@@ -271,24 +341,28 @@ export function QuickAddModal({ isOpen, onClose, onCreated }) {
               count={<CharCount value={contactForm.name} max={CONSTRAINTS.contactName.maxLength} />}
             >
               <input
+                ref={contactNameRef}
                 type="text"
                 required
                 minLength={CONSTRAINTS.contactName.minLength}
                 maxLength={CONSTRAINTS.contactName.maxLength}
                 value={contactForm.name}
                 onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
+                onKeyDown={(e) => handleAdvance(e, contactCompanyRef, handleSubmitContact)}
                 placeholder="Jane Cooper"
                 className="input-editorial"
               />
             </Field>
             <Field label="Company *">
               <input
+                ref={contactCompanyRef}
                 type="text"
                 required
                 minLength={1}
                 maxLength={CONSTRAINTS.company.maxLength}
                 value={contactForm.company}
                 onChange={(e) => setContactForm({ ...contactForm, company: e.target.value })}
+                onKeyDown={(e) => handleAdvance(e, contactTitleRef, handleSubmitContact)}
                 placeholder="Acme Dynamics"
                 className="input-editorial"
               />
@@ -298,22 +372,26 @@ export function QuickAddModal({ isOpen, onClose, onCreated }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <Field label="Job Title *">
               <input
+                ref={contactTitleRef}
                 type="text"
                 required
                 maxLength={CONSTRAINTS.contactTitle.maxLength}
                 value={contactForm.title}
                 onChange={(e) => setContactForm({ ...contactForm, title: e.target.value })}
+                onKeyDown={(e) => handleAdvance(e, contactEmailRef, handleSubmitContact)}
                 placeholder="VP of Engineering"
                 className="input-editorial"
               />
             </Field>
             <Field label="Email *">
               <input
+                ref={contactEmailRef}
                 type="email"
                 required
                 maxLength={CONSTRAINTS.email.maxLength}
                 value={contactForm.email}
                 onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
+                onKeyDown={(e) => handleAdvance(e, contactPhoneRef, handleSubmitContact)}
                 placeholder="jane@acmedynamics.com"
                 className="input-editorial"
               />
@@ -323,11 +401,13 @@ export function QuickAddModal({ isOpen, onClose, onCreated }) {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <Field label="Phone">
               <input
+                ref={contactPhoneRef}
                 type="tel"
                 maxLength={CONSTRAINTS.phone.maxLength}
                 pattern="[\+]?[\d\s\-\(\)]{0,20}"
                 value={contactForm.phone}
                 onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })}
+                onKeyDown={(e) => handleAdvance(e, contactLeadValueRef, handleSubmitContact)}
                 placeholder="+1 555-0192"
                 className="input-editorial"
               />
@@ -345,13 +425,13 @@ export function QuickAddModal({ isOpen, onClose, onCreated }) {
             </Field>
             <Field label="Lead Value ($)">
               <input
+                ref={contactLeadValueRef}
                 type="number"
                 min={CONSTRAINTS.leadValue.min}
                 max={CONSTRAINTS.leadValue.max}
                 step={100}
                 value={contactForm.lead_value}
                 onChange={(e) => setContactForm({ ...contactForm, lead_value: e.target.value })}
-                placeholder="35000"
                 className="input-editorial"
               />
             </Field>
@@ -380,16 +460,31 @@ export function QuickAddModal({ isOpen, onClose, onCreated }) {
               maxLength={CONSTRAINTS.notes.maxLength}
               value={contactForm.notes}
               onChange={(e) => setContactForm({ ...contactForm, notes: e.target.value })}
-              placeholder="Key background, relationship context..."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault();
+                  handleSubmitContact(e);
+                }
+              }}
+              placeholder="Key background, relationship context... (Ctrl+Enter to save)"
               className="textarea-editorial"
             />
           </Field>
 
-          <div className="flex justify-end gap-3 pt-2 border-t border-neutral-200">
-            <EditorialButton variant="ghost" onClick={handleClose} type="button">Cancel</EditorialButton>
-            <EditorialButton type="submit" variant="primary" disabled={loading}>
-              {loading ? 'Filing...' : 'File Contact'}
-            </EditorialButton>
+          <div className="flex items-center justify-between pt-3 border-t border-neutral-200">
+            <div className="font-data text-[10px] text-neutral-400 hidden sm:flex items-center gap-1.5">
+              <span><kbd className="bg-neutral-200 text-neutral-700 px-1 py-0.5 border border-neutral-300">Enter</kbd> Next</span>
+              <span>•</span>
+              <span><kbd className="bg-neutral-200 text-neutral-700 px-1 py-0.5 border border-neutral-300">Ctrl+Enter</kbd> Save</span>
+              <span>•</span>
+              <span><kbd className="bg-neutral-200 text-neutral-700 px-1 py-0.5 border border-neutral-300">Esc</kbd> Cancel</span>
+            </div>
+            <div className="flex justify-end gap-3 w-full sm:w-auto">
+              <EditorialButton variant="ghost" onClick={handleClose} type="button">Cancel</EditorialButton>
+              <EditorialButton type="submit" variant="primary" disabled={loading}>
+                {loading ? 'Filing...' : 'File Contact'}
+              </EditorialButton>
+            </div>
           </div>
         </form>
       )}
@@ -402,13 +497,20 @@ export function QuickAddModal({ isOpen, onClose, onCreated }) {
             count={<CharCount value={taskForm.title} max={CONSTRAINTS.taskTitle.maxLength} />}
           >
             <textarea
+              ref={taskTitleRef}
               required
               rows={3}
               minLength={CONSTRAINTS.taskTitle.minLength}
               maxLength={CONSTRAINTS.taskTitle.maxLength}
               value={taskForm.title}
               onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
-              placeholder="Call CFO regarding security clearance approval..."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault();
+                  handleSubmitTask(e);
+                }
+              }}
+              placeholder="Call CFO regarding security clearance approval... (Ctrl+Enter to save)"
               className="textarea-editorial"
             />
           </Field>
@@ -416,6 +518,7 @@ export function QuickAddModal({ isOpen, onClose, onCreated }) {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <Field label="Due Date">
               <input
+                ref={taskDateRef}
                 type="date"
                 min={new Date().toISOString().split('T')[0]}
                 value={taskForm.due_date}
@@ -447,11 +550,18 @@ export function QuickAddModal({ isOpen, onClose, onCreated }) {
             </Field>
           </div>
 
-          <div className="flex justify-end gap-3 pt-2 border-t border-neutral-200">
-            <EditorialButton variant="ghost" onClick={handleClose} type="button">Cancel</EditorialButton>
-            <EditorialButton type="submit" variant="primary" disabled={loading}>
-              {loading ? 'Filing...' : 'File Task'}
-            </EditorialButton>
+          <div className="flex items-center justify-between pt-3 border-t border-neutral-200">
+            <div className="font-data text-[10px] text-neutral-400 hidden sm:flex items-center gap-1.5">
+              <span><kbd className="bg-neutral-200 text-neutral-700 px-1 py-0.5 border border-neutral-300">Ctrl+Enter</kbd> Save</span>
+              <span>•</span>
+              <span><kbd className="bg-neutral-200 text-neutral-700 px-1 py-0.5 border border-neutral-300">Esc</kbd> Cancel</span>
+            </div>
+            <div className="flex justify-end gap-3 w-full sm:w-auto">
+              <EditorialButton variant="ghost" onClick={handleClose} type="button">Cancel</EditorialButton>
+              <EditorialButton type="submit" variant="primary" disabled={loading}>
+                {loading ? 'Filing...' : 'File Task'}
+              </EditorialButton>
+            </div>
           </div>
         </form>
       )}
